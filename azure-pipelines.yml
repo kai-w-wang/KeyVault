@@ -3,7 +3,7 @@ stages:
   jobs:
   - job: Build
     pool:
-      vmImage: windows-latest
+      name: ChinaAzure
     variables:
       project: '**/*.csproj'
       buildPlatform: 'Any CPU'
