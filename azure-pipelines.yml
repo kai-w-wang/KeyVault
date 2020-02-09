@@ -1,0 +1,33 @@
+stages:
+- stage: Build
+  jobs:
+  - job: Build
+    pool:
+      vmImage: windows-latest
+    variables:
+      project: '**/*.csproj'
+      buildPlatform: 'Any CPU'
+      buildConfiguration: 'Release'
+    steps:
+    - checkout: self
+      path: KeyVault
+      clean: false
+    - task: UseDotNet@2
+      displayName: Use .Net Core sdk 3.x
+      inputs:
+        packageType: sdk
+        version: 3.x
+    - task: DotNetCoreCLI@1
+      displayName: Build
+      inputs:
+        projects: $(project)
+        arguments: --configuration $(buildConfiguration)
+      enabled: false
+    - task: DotNetCoreCLI@2
+      displayName: Publish
+      inputs:
+        command: 'publish'
+        publishWebProjects: false
+        projects: '$(project)'
+        arguments: '--configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)'
+    - publish: $(build.artifactstagingdirectory)
