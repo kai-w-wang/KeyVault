@@ -80,7 +80,7 @@ namespace KeyVaultTool
                         var temp = await kv.GetSecretAsync(v.Id);
                         var versionName = temp.Id.Substring(temp.Id.LastIndexOf('/') + 1);
                         var a = temp.Attributes;
-                        Console.WriteLine($"\t{versionName}({a.Created}, {a.Updated}): {temp.Value}    ");
+                        writer.WriteLine($"  {a.Updated.Value:O}{versionName}\t{temp.Value}");
                     }
                 }
         }
@@ -121,9 +121,10 @@ namespace KeyVaultTool
             cb.AppendLine("    --address        Azure Key Vault addresss.");
             cb.AppendLine("    --clientId       Client Id");
             cb.AppendLine("    --clientSecret   Client Secret");
-            cb.AppendLine("    --mode           Import/Export. The default value is Export");
+            cb.AppendLine("    --mode           Import/Export. Default value is Export");
             cb.AppendLine("    --file           File name to be used for import or Export.");
             cb.AppendLine("    --filter         Filter rules regular expressioin.");
+            cb.AppendLine("    --showVersions   Show versions.  Default value is false. Format: {a.Updated.Value:O}{versionName}\t{value}");
             cb.AppendLine();
             cb.AppendLine("Samples:");
             cb.AppendLine("     --address https://sample.vault.azure.cn/");
