@@ -1,8 +1,9 @@
-﻿namespace TestKeyVault
+﻿namespace KeyVaultTool
 {
     public enum OperationMode{
         Export,
-        Import        
+        Import,
+        Help        
     };
     public class KeyVaultOptions {
         public string Address { set; get; }

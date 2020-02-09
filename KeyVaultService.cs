@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,7 +14,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
-namespace TestKeyVault
+namespace KeyVaultTool
 {
     public class KeyVaultService : BackgroundService
     {
@@ -29,6 +30,8 @@ namespace TestKeyVault
             _logger = logger;
             _options = options.Value;
             _appLifetime = appLifetime;
+            if (string.IsNullOrWhiteSpace(_options?.Address))
+                _options.Mode = OperationMode.Help;
         }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -39,6 +42,9 @@ namespace TestKeyVault
                         break;
                     case OperationMode.Import:
                         await Import();
+                        break;
+                    case OperationMode.Help:
+                        await Help();
                         break;
                 }
             } catch(Exception ex) {
@@ -109,6 +115,24 @@ namespace TestKeyVault
                 _token =  (await authenticationContext.AcquireTokenAsync(resource, adCredential)).AccessToken;
             }
             return _token;
+        }
+        async Task Help() {
+            StringBuilder cb = new StringBuilder(4096);
+            cb.AppendLine("    --address        Azure Key Vault addresss.");
+            cb.AppendLine("    --clientId       Client Id");
+            cb.AppendLine("    --clientSecret   Client Secret");
+            cb.AppendLine("    --mode           Import/export. The default value is export");
+            cb.AppendLine("    --file           file name to be used for import or export.");
+            cb.AppendLine("    --filter         Filter rules regular expressioin.");
+            cb.AppendLine();
+            cb.AppendLine("Samples:");
+            cb.AppendLine("     --address https://sample.vault.azure.cn/");
+            cb.AppendLine("     --address https://sample.vault.azure.cn/ --filter .*Vault.*");
+            cb.AppendLine("     --Address https://sample.vault.azure.cn/ --clientId {guid}} --clientSecret {secret}");
+            cb.AppendLine("     --address https://sample.vault.azure.cn/ --clientId {guid} --clientSecret {secret} --mode import --file output.kv");
+            cb.AppendLine("     --address https://sample.vault.azure.cn/ --clientId {guid} --clientSecret {secret} --mode export --file output.kv");
+            _logger.LogInformation(cb.ToString());
+            await Task.CompletedTask;
         }
     }
 }
