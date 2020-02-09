@@ -121,14 +121,14 @@ namespace KeyVaultTool
             cb.AppendLine("    --address        Azure Key Vault addresss.");
             cb.AppendLine("    --clientId       Client Id");
             cb.AppendLine("    --clientSecret   Client Secret");
-            cb.AppendLine("    --mode           Import/export. The default value is export");
-            cb.AppendLine("    --file           file name to be used for import or export.");
+            cb.AppendLine("    --mode           Import/Export. The default value is Export");
+            cb.AppendLine("    --file           File name to be used for import or Export.");
             cb.AppendLine("    --filter         Filter rules regular expressioin.");
             cb.AppendLine();
             cb.AppendLine("Samples:");
             cb.AppendLine("     --address https://sample.vault.azure.cn/");
             cb.AppendLine("     --address https://sample.vault.azure.cn/ --filter .*Vault.*");
-            cb.AppendLine("     --Address https://sample.vault.azure.cn/ --clientId {guid}} --clientSecret {secret}");
+            cb.AppendLine("     --address https://sample.vault.azure.cn/ --clientId {guid}} --clientSecret {secret}");
             cb.AppendLine("     --address https://sample.vault.azure.cn/ --clientId {guid} --clientSecret {secret} --mode import --file output.kv");
             cb.AppendLine("     --address https://sample.vault.azure.cn/ --clientId {guid} --clientSecret {secret} --mode export --file output.kv");
             _logger.LogInformation(cb.ToString());
