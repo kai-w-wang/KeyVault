@@ -127,7 +127,7 @@ namespace KeyVaultTool
             cb.AppendLine("    --showVersions   Show versions.  Default value is false. Format: {a.Updated.Value:O}{versionName}\t{value}");
             cb.AppendLine();
             cb.AppendLine("Samples:");
-            cb.AppendLine("     --address https://sample.vault.azure.cn/");
+            cb.AppendLine("     --address https://sample.vault.azure.net/");
             cb.AppendLine("     --address https://sample.vault.azure.cn/ --filter .*Vault.*");
             cb.AppendLine("     --address https://sample.vault.azure.cn/ --clientId {guid}} --clientSecret {secret}");
             cb.AppendLine("     --address https://sample.vault.azure.cn/ --clientId {guid} --clientSecret {secret} --mode import --file output.kv");
