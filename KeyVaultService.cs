@@ -76,7 +76,7 @@ namespace KeyVaultTool
                     for(var v = await kv.GetSecretVersionsAsync(_options.Address, item.Identifier.Name); v != null; v = string.IsNullOrEmpty(v.NextPageLink) ? null: await kv.GetSecretVersionsNextAsync(v.NextPageLink)){
                         versions.AddRange(v);
                     }
-                    foreach(var v in versions){
+                    foreach(var v in versions.OrderBy(v=>v.Attributes.Updated)){
                         var temp = await kv.GetSecretAsync(v.Id);
                         var versionName = temp.Id.Substring(temp.Id.LastIndexOf('/') + 1);
                         var a = temp.Attributes;
@@ -111,7 +111,7 @@ namespace KeyVaultTool
                 _token = await tokenProvider.KeyVaultTokenCallback(authority, resource, scope);
             } else {
                 var adCredential = new ClientCredential(_options.ClientId, _options.ClientSecret);
-                var authenticationContext = new AuthenticationContext(authority, null);
+                var authenticationContext = new AuthenticationContext(authority);
                 _token =  (await authenticationContext.AcquireTokenAsync(resource, adCredential)).AccessToken;
             }
             return _token;
