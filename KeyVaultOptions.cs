@@ -11,6 +11,7 @@
         public OperationMode Mode { get; set; } = OperationMode.Export;
         public string File { get; set; } = "CON";
         public string Filter { get; set; } = ".*";
+        public string Delimiter { get; set; } = "\t";
         public string Tags { get; set; } = ".*";
         public bool ShowVersions { get; set; }
     }

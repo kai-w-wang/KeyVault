@@ -30,15 +30,17 @@ namespace KeyVaultTool {
             _appLifetime = appLifetime;
             if (string.IsNullOrWhiteSpace(_options?.Address))
                 _options.Mode = OperationMode.Help;
+            if (!_options.Address.Contains('.'))
+                _options.Address = $"https://{_options.Address}.vault.azure.net/";
         }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
             try {
                 switch (_options.Mode) {
                     case OperationMode.Export:
-                        await Export();
+                        await Export(stoppingToken);
                         break;
                     case OperationMode.Import:
-                        await Import();
+                        await Import(stoppingToken);
                         break;
                     case OperationMode.Help:
                         await Help();
@@ -46,18 +48,17 @@ namespace KeyVaultTool {
                 }
             }
             catch (Exception ex) {
-                _logger.LogError(ex, "ExecuteAsync");
-                Console.Error.WriteLine(ex.ToString());
+                _logger.LogError(ex, ex.Message);
             }
             _appLifetime.StopApplication();
         }
 
-        async Task Export() {
+        async Task Export(CancellationToken stoppingToken) {
             var list = new List<SecretItem>();
             var kv = new KeyVaultClient(GetTokenAsync);
-            for (var l = await kv.GetSecretsAsync(_options.Address);
+            for (var l = await kv.GetSecretsAsync(_options.Address, null, stoppingToken);
                 l != null;
-                l = string.IsNullOrEmpty(l.NextPageLink) ? null : await kv.GetSecretsNextAsync(l.NextPageLink)) {
+                l = string.IsNullOrEmpty(l.NextPageLink) ? null : await kv.GetSecretsNextAsync(l.NextPageLink, stoppingToken)) {
                 list.AddRange(l);
             }
             Regex regex = new Regex(_options.Filter);
@@ -66,26 +67,33 @@ namespace KeyVaultTool {
                          select l;
             using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.CreateText(_options.File))
                 foreach (var item in result) {
-                    var secret = await kv.GetSecretAsync(item.Id);
-                    writer.WriteLine($"{secret.SecretIdentifier.Name}\t{secret.Value}");
+                    var secret = await kv.GetSecretAsync(item.Id, stoppingToken);
+                    var valueList = new List<string>(){
+                        secret.SecretIdentifier.Name,
+                        secret.Value
+                    };
+                    // if (item.Tags != null)
+                    //     valueList.AddRange(item.Tags.Values);
+                    var line = string.Join(_options.Delimiter, valueList);
+                    writer.WriteLine(line);
                     if (!_options.ShowVersions)
                         continue;
                     var versions = new List<SecretItem>();
-                    for (var v = await kv.GetSecretVersionsAsync(_options.Address, item.Identifier.Name);
+                    for (var v = await kv.GetSecretVersionsAsync(_options.Address, item.Identifier.Name, null, stoppingToken);
                         v != null;
-                        v = string.IsNullOrEmpty(v.NextPageLink) ? null : await kv.GetSecretVersionsNextAsync(v.NextPageLink)
+                        v = string.IsNullOrEmpty(v.NextPageLink) ? null : await kv.GetSecretVersionsNextAsync(v.NextPageLink, stoppingToken)
                         ) {
                         versions.AddRange(v);
                     }
                     foreach (var v in versions.OrderBy(v => v.Attributes.Updated)) {
-                        var temp = await kv.GetSecretAsync(v.Id);
+                        var temp = await kv.GetSecretAsync(v.Id, stoppingToken);
                         var versionName = temp.Id.Substring(temp.Id.LastIndexOf('/') + 1);
                         var a = temp.Attributes;
                         writer.WriteLine($"  {a.Updated.Value:O}{versionName}\t{temp.Value}");
                     }
                 }
         }
-        async Task Import() {
+        async Task Import(CancellationToken stoppingToken) {
             var kv = new KeyVaultClient(GetTokenAsync);
             using (TextReader reader = string.Compare(_options.File, "CON", true) == 0 ? Console.In : File.OpenText(_options.File)) {
                 for (string line = await reader.ReadLineAsync(); line != null; line = await reader.ReadLineAsync()) {
@@ -96,7 +104,7 @@ namespace KeyVaultTool {
                     var value = items[1];
                     Console.WriteLine(name);
                     try {
-                        await kv.SetSecretAsync(_options.Address, name, value);
+                        await kv.SetSecretAsync(_options.Address, name, value, null, null, null, stoppingToken);
                     }
                     catch (Microsoft.Azure.KeyVault.Models.KeyVaultErrorException ex) {
                         _logger.LogError(ex, "ExecuteAsync");
