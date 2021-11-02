@@ -30,7 +30,7 @@ namespace KeyVaultTool {
             _appLifetime = appLifetime;
             if (string.IsNullOrWhiteSpace(_options?.Address))
                 _options.Mode = OperationMode.Help;
-            if (!_options.Address.Contains('.'))
+            if (_options.Address != null && !_options.Address.Contains('.'))
                 _options.Address = $"https://{_options.Address}.vault.azure.net/";
         }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
@@ -131,10 +131,10 @@ namespace KeyVaultTool {
             cb.AppendLine("    --address        Azure Key Vault addresss.");
             cb.AppendLine("    --clientId       Client Id");
             cb.AppendLine("    --clientSecret   Client Secret");
-            cb.AppendLine("    --mode           Import/Export. Default value is Export");
+            cb.AppendLine("    --mode           Import/Export. Default: Export");
             cb.AppendLine("    --file           File name to be used for import or Export.");
             cb.AppendLine("    --filter         Filter rules regular expressioin.");
-            cb.AppendLine("    --showVersions   Show versions.  Default value is false. Format: {a.Updated.Value:O}{versionName}\t{value}");
+            cb.AppendLine("    --showVersions   Show versions.  Default: false. Format: {a.Updated.Value:O}{versionName}\t{value}");
             cb.AppendLine();
             cb.AppendLine("Samples:");
             cb.AppendLine("     --address https://sample.vault.azure.net/");
