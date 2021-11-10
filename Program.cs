@@ -22,18 +22,37 @@ namespace KeyVaultTool {
                 { "-c", "config" },
                 { "-a", "Address" },
                 { "-u", "ClientId" },
-                { "--client-id", "ClientId" },
                 { "-p", "ClientSecret" },
-                { "--client-secret", "ClientSecret" },
                 { "-m", "mode" },
                 { "-f", "filter" },                
-                { "-o", "file" }
+                { "-o", "file" },
+                { "--client-id", "ClientId" },
+                { "--client-secret", "ClientSecret" }
             };
             cb.AddCommandLine(_args, switchMappings);
             IConfiguration config = cb.Build();
             var configPath = config["config"];
             if (File.Exists(configPath)) {
-                cb.AddJsonFile(configPath);
+                var extName = Path.GetExtension(configPath);
+                extName = extName.ToLower();
+                switch(extName) {
+                    case ".json":
+                        cb.AddJsonFile(configPath);
+                        break;
+                    case ".xml":
+                        cb.AddXmlFile(configPath);
+                        break;
+                    case ".ini":
+                        cb.AddIniFile(configPath);
+                        break;
+                    case ".yaml":
+                        cb.AddYamlFile(configPath);
+                        break;
+                    case ".yml":
+                        cb.AddYamlFile(configPath);
+                        break;
+                }
+                
             }
         }
         static void ConfigureServices(HostBuilderContext context, IServiceCollection services) {
