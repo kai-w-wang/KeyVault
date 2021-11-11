@@ -128,20 +128,20 @@ namespace KeyVaultTool {
         }
         async Task Help() {
             StringBuilder cb = new StringBuilder(4096);
-            cb.AppendLine("    --address        Azure Key Vault addresss.");
-            cb.AppendLine("    --clientId       Client Id");
-            cb.AppendLine("    --clientSecret   Client Secret");
-            cb.AppendLine("    --mode           Import/Export. Default: Export");
-            cb.AppendLine("    --file           File name to be used for import or Export.");
-            cb.AppendLine("    --filter         Filter rules regular expressioin.");
-            cb.AppendLine("    --showVersions   Show versions.  Default: false. Format: {a.Updated.Value:O}{versionName}\t{value}");
+            cb.AppendLine("  -a, --address        Azure Key Vault addresss.");
+            cb.AppendLine("  -u, --client-id      Client Id");
+            cb.AppendLine("  -p, --client-secret  Client Secret");
+            cb.AppendLine("  -m, --mode           Import/Export. Default: Export");
+            cb.AppendLine("  -o, --file           File name to be used for import or Export.");
+            cb.AppendLine("  -f, --filter         Filter rules regular expressioin.");
+            cb.AppendLine("  -v, --show-versions  Show versions.  Default: false. Format: {a.Updated.Value:O}{versionName}\t{value}");
             cb.AppendLine();
             cb.AppendLine("Samples:");
-            cb.AppendLine("     --address https://sample.vault.azure.net/");
-            cb.AppendLine("     --address https://sample.vault.azure.cn/ --filter .*Vault.*");
-            cb.AppendLine("     --address https://sample.vault.azure.cn/ --clientId {guid} --clientSecret {secret}");
-            cb.AppendLine("     --address https://sample.vault.azure.cn/ --clientId {guid} --clientSecret {secret} --mode import --file output.txt");
-            cb.AppendLine("     --address https://sample.vault.azure.cn/ --clientId {guid} --clientSecret {secret} --mode export --file output.txt");
+            cb.AppendLine("  --address https://sample.vault.azure.net/");
+            cb.AppendLine("  --address https://sample.vault.azure.cn/ --filter .*Vault.*");
+            cb.AppendLine("  --address https://sample.vault.azure.cn/ --client-id {guid} --client-secret {secret}");
+            cb.AppendLine("  --address https://sample.vault.azure.cn/ --client-id {guid} --client-secret {secret} --mode import --file output.txt");
+            cb.AppendLine("  --address https://sample.vault.azure.cn/ --client-id {guid} --client-secret {secret} --mode export --file output.txt");
             _logger.LogInformation(cb.ToString());
             await Task.CompletedTask;
         }

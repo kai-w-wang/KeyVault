@@ -26,8 +26,10 @@ namespace KeyVaultTool {
                 { "-m", "mode" },
                 { "-f", "filter" },                
                 { "-o", "file" },
+                { "-v", "ShowVersions" },
                 { "--client-id", "ClientId" },
-                { "--client-secret", "ClientSecret" }
+                { "--client-secret", "ClientSecret" },
+                { "--show-versions", "ShowVersions" },
             };
             cb.AddCommandLine(_args, switchMappings);
             IConfiguration config = cb.Build();
