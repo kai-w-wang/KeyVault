@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Azure.KeyVault;
-using Microsoft.Azure.KeyVault.Models;
+using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
 using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -19,7 +20,6 @@ namespace KeyVaultTool {
         ILogger<KeyVaultService> _logger;
         KeyVaultOptions _options;
         private readonly IHostApplicationLifetime _appLifetime;
-        private string _token;
         public KeyVaultService(
             ILogger<KeyVaultService> logger,
             IOptions<KeyVaultOptions> options,
@@ -52,49 +52,8 @@ namespace KeyVaultTool {
             }
             _appLifetime.StopApplication();
         }
-
-        async Task Export(CancellationToken stoppingToken) {
-            var list = new List<SecretItem>();
-            var kv = new KeyVaultClient(GetTokenAsync);
-            for (var l = await kv.GetSecretsAsync(_options.Address, null, stoppingToken);
-                l != null;
-                l = string.IsNullOrEmpty(l.NextPageLink) ? null : await kv.GetSecretsNextAsync(l.NextPageLink, stoppingToken)) {
-                list.AddRange(l);
-            }
-            Regex regex = new Regex(_options.Filter);
-            var result = from l in list
-                         where regex.IsMatch(l.Identifier.Name)
-                         select l;
-            using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.CreateText(_options.File))
-                foreach (var item in result) {
-                    var secret = await kv.GetSecretAsync(item.Id, stoppingToken);
-                    var valueList = new List<string>(){
-                        secret.SecretIdentifier.Name,
-                        secret.Value
-                    };
-                    // if (item.Tags != null)
-                    //     valueList.AddRange(item.Tags.Values);
-                    var line = string.Join(_options.Delimiter, valueList);
-                    writer.WriteLine(line);
-                    if (!_options.ShowVersions)
-                        continue;
-                    var versions = new List<SecretItem>();
-                    for (var v = await kv.GetSecretVersionsAsync(_options.Address, item.Identifier.Name, null, stoppingToken);
-                        v != null;
-                        v = string.IsNullOrEmpty(v.NextPageLink) ? null : await kv.GetSecretVersionsNextAsync(v.NextPageLink, stoppingToken)
-                        ) {
-                        versions.AddRange(v);
-                    }
-                    foreach (var v in versions.OrderBy(v => v.Attributes.Updated)) {
-                        var temp = await kv.GetSecretAsync(v.Id, stoppingToken);
-                        var versionName = temp.Id.Substring(temp.Id.LastIndexOf('/') + 1);
-                        var a = temp.Attributes;
-                        writer.WriteLine($"  {a.Updated.Value:O}{versionName}\t{temp.Value}");
-                    }
-                }
-        }
         async Task Import(CancellationToken stoppingToken) {
-            var kv = new KeyVaultClient(GetTokenAsync);
+            var kv = new SecretClient(new Uri(_options.Address), GetToken());
             using (TextReader reader = string.Compare(_options.File, "CON", true) == 0 ? Console.In : File.OpenText(_options.File)) {
                 for (string line = await reader.ReadLineAsync(); line != null; line = await reader.ReadLineAsync()) {
                     var items = line.Split('\t');
@@ -104,31 +63,90 @@ namespace KeyVaultTool {
                     var value = items[1];
                     Console.WriteLine(name);
                     try {
-                        await kv.SetSecretAsync(_options.Address, name, value, null, null, null, stoppingToken);
+                        await kv.SetSecretAsync(name, value, stoppingToken);
                     }
-                    catch (Microsoft.Azure.KeyVault.Models.KeyVaultErrorException ex) {
+                    catch (Exception ex) {
                         _logger.LogError(ex, "ExecuteAsync");
                         //Console.Error.WriteLine(ex.ToString());
                     }
                 }
             }
         }
-        async Task<string> GetTokenAsync(string authority, string resource, string scope) {
-            if (!string.IsNullOrEmpty(_token))
-                return _token;
-            if (string.IsNullOrEmpty(_options.ClientId) || string.IsNullOrEmpty(_options.ClientSecret)) {
-                var tokenProvider = new AzureServiceTokenProvider();
-                _token = await tokenProvider.KeyVaultTokenCallback(authority, resource, scope);
-            } else {
-                var adCredential = new ClientCredential(_options.ClientId, _options.ClientSecret);
-                var authenticationContext = new AuthenticationContext(authority);
-                _token = (await authenticationContext.AcquireTokenAsync(resource, adCredential)).AccessToken;
+        async Task Export(CancellationToken stoppingToken) {
+            var list = new List<Azure.Security.KeyVault.Secrets.SecretProperties>();
+            var kv = new SecretClient(new Uri(_options.Address), GetToken());
+            var allSecrets = kv.GetPropertiesOfSecretsAsync(stoppingToken);
+            await foreach (var secret in allSecrets) {
+                // Getting a disabled secret will fail, so skip disabled secrets.
+                if (!secret.Enabled.GetValueOrDefault())
+                    continue;
+                list.Add(secret);
             }
-            return _token;
+            Regex regex = new Regex(_options.Filter);
+            var result = from l in list
+                         where regex.IsMatch(l.Name)
+                         select l;
+            using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.CreateText(_options.File))
+                foreach (var item in result) {
+                    KeyVaultSecret secret = await kv.GetSecretAsync(item.Name);
+                    //var secret = await kv.GetSecretAsync(item.Id, stoppingToken);
+                    var valueList = new List<string>(){
+                        secret.Name,
+                        secret.Value
+                    };
+                    // if (item.Tags != null)
+                    //     valueList.AddRange(item.Tags.Values);
+                    var line = string.Join(_options.Delimiter, valueList);
+                    writer.WriteLine(line);
+                    if (!_options.ShowVersions)
+                        continue;
+                    var versions = new List<KeyVaultSecret>();
+                    await foreach (var v in kv.GetPropertiesOfSecretVersionsAsync(secret.Name)) {
+                        // Secret versions may also be disabled if compromised and new versions generated, so skip disabled versions, too.
+                        if (!v.Enabled.GetValueOrDefault()) {
+                            continue;
+                        }
+                        KeyVaultSecret versionValue = await kv.GetSecretAsync(v.Name, v.Version);
+                        versions.Add(versionValue);
+                    }
+                    foreach (var v in versions.OrderBy(v => v.Properties.UpdatedOn)) {
+                        var id = v.Id.ToString();
+                        var versionName = id.Substring(id.LastIndexOf('/') + 1);
+                        writer.WriteLine($"  {v.Properties.UpdatedOn:O}{versionName}\t{v.Value}");
+                    }
+                }
+        }
+        private Azure.Core.TokenCredential GetToken() {
+            if (string.IsNullOrEmpty(_options.ClientId) || string.IsNullOrEmpty(_options.ClientSecret)) {
+                DefaultAzureCredentialOptions options = new DefaultAzureCredentialOptions() {
+                    AuthorityHost = GetAuthorityHost(),
+                    ManagedIdentityClientId = _options.ClientId
+                };
+                return new DefaultAzureCredential(options);
+            } else {
+                ClientSecretCredentialOptions options = new ClientSecretCredentialOptions();
+                options.AuthorityHost = GetAuthorityHost();
+                return new ClientSecretCredential(_options.TenantId, _options.ClientId, _options.ClientSecret, options);
+            }
+        }
+        private Uri GetAuthorityHost() {
+            Uri kvAddress = new Uri(_options.Address);
+            var str = _options.Address;
+            var host = kvAddress.Host;
+            var suffix = host.Substring(host.IndexOf('.') + 1);
+            switch (suffix) {
+                case "vault.azure.cn":
+                    return AzureAuthorityHosts.AzureChina;
+                case "vault.azure.net":
+                    return AzureAuthorityHosts.AzurePublicCloud;
+                default:
+                    return AzureAuthorityHosts.AzurePublicCloud;
+            }
         }
         async Task Help() {
             StringBuilder cb = new StringBuilder(4096);
             cb.AppendLine("  -a, --address        Azure Key Vault addresss.");
+            cb.AppendLine("  -t, --tenant-id      Tenant Id");
             cb.AppendLine("  -u, --client-id      Client Id");
             cb.AppendLine("  -p, --client-secret  Client Secret");
             cb.AppendLine("  -m, --mode           Import/Export. Default: Export");
@@ -139,9 +157,9 @@ namespace KeyVaultTool {
             cb.AppendLine("Samples:");
             cb.AppendLine("  --address https://sample.vault.azure.net/");
             cb.AppendLine("  --address https://sample.vault.azure.cn/ --filter .*Vault.*");
-            cb.AppendLine("  --address https://sample.vault.azure.cn/ --client-id {guid} --client-secret {secret}");
-            cb.AppendLine("  --address https://sample.vault.azure.cn/ --client-id {guid} --client-secret {secret} --mode import --file output.txt");
-            cb.AppendLine("  --address https://sample.vault.azure.cn/ --client-id {guid} --client-secret {secret} --mode export --file output.txt");
+            cb.AppendLine("  --address https://sample.vault.azure.cn/ --tenant-id {tenant} --client-id {guid} --client-secret {secret}");
+            cb.AppendLine("  --address https://sample.vault.azure.cn/ --tenant-id {tenant} --client-id {guid} --client-secret {secret} --mode import --file output.txt");
+            cb.AppendLine("  --address https://sample.vault.azure.cn/ --tenant-id {tenant} --client-id {guid} --client-secret {secret} --mode export --file output.txt");
             _logger.LogInformation(cb.ToString());
             await Task.CompletedTask;
         }
