@@ -82,9 +82,11 @@ namespace KeyVaultTool {
                     continue;
                 list.Add(secret);
             }
-            Regex regex = new Regex(_options.Filter);
+            var emptyContentTypeFilter = string.IsNullOrEmpty(_options.ContentTypeFilter);
             var result = from l in list
-                         where regex.IsMatch(l.Name)
+                         where Regex.IsMatch(l.Name, _options.Filter)
+                            && emptyContentTypeFilter ? string.IsNullOrEmpty(l.ContentType)
+                                : Regex.IsMatch(l.ContentType, _options.ContentTypeFilter)
                          select l;
             using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.CreateText(_options.File))
                 foreach (var item in result) {
@@ -146,6 +148,7 @@ namespace KeyVaultTool {
         async Task Help() {
             StringBuilder cb = new StringBuilder(4096);
             cb.AppendLine("  -a, --address        Azure Key Vault addresss.");
+            cb.AppendLine("  -c, --config         Config file");
             cb.AppendLine("  -t, --tenant-id      Tenant Id");
             cb.AppendLine("  -u, --client-id      Client Id");
             cb.AppendLine("  -p, --client-secret  Client Secret");

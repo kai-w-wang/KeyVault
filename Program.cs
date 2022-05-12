@@ -30,6 +30,7 @@ namespace KeyVaultTool {
                 { "-v", "ShowVersions" },
                 { "--tenant-id", "TenantId" },
                 { "--client-id", "ClientId" },
+                { "--content-type-filter", "ContentTypeFileter" },
                 { "--client-secret", "ClientSecret" },
                 { "--show-versions", "ShowVersions" },
             };

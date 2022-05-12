@@ -15,5 +15,6 @@
         public string Delimiter { get; set; } = "\t";
         public string Tags { get; set; } = ".*";
         public bool ShowVersions { get; set; }
+        public string ContentTypeFilter { get; set; }
     }
 }
