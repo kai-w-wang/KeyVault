@@ -147,11 +147,11 @@ namespace KeyVaultTool {
             StringBuilder cb = new StringBuilder(4096);
             cb.AppendLine("  -a, --address        Azure Key Vault addresss.");
             cb.AppendLine("  -c, --config         Config file");
-            cb.AppendLine("  -t, --tenant-id      Tenant Id");
-            cb.AppendLine("  -u, --client-id      Client Id");
-            cb.AppendLine("  -p, --client-secret  Client Secret");
+            cb.AppendLine("  -t, --tenant-id      Tenant id");
+            cb.AppendLine("  -u, --client-id      Client id");
+            cb.AppendLine("  -p, --client-secret  Client secret");
             cb.AppendLine("  -m, --mode           Import/Export. Default: Export");
-            cb.AppendLine("  -o, --file           File name to be used for import or Export.");
+            cb.AppendLine("  -o, --file           File path to be used for import or export.");
             cb.AppendLine("  -f, --filter         Filter rules regular expressioin.");
             cb.AppendLine("  -v, --show-versions  Show versions.  Default: false. Format: {a.Updated.Value:O}{versionName}\t{value}");
             cb.AppendLine();

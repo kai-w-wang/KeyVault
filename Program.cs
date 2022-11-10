@@ -20,19 +20,19 @@ namespace KeyVaultTool {
         static void ConfigureAppCongiuration(HostBuilderContext context, IConfigurationBuilder cb) {
             var switchMappings = new Dictionary<string, string>(){
                 { "-c", "config" },
-                { "-a", "Address" },
-                { "-t", "TenantId" },
-                { "-u", "ClientId" },
-                { "-p", "ClientSecret" },
+                { "-a", "address" },
+                { "-t", "tenantId" },
+                { "-u", "clientId" },
+                { "-p", "clientSecret" },
                 { "-m", "mode" },
                 { "-f", "filter" },                
                 { "-o", "file" },
-                { "-v", "ShowVersions" },
-                { "--tenant-id", "TenantId" },
-                { "--client-id", "ClientId" },
-                { "--content-type-filter", "ContentTypeFileter" },
-                { "--client-secret", "ClientSecret" },
-                { "--show-versions", "ShowVersions" },
+                { "-v", "showVersions" },
+                { "--tenant-id", "tenantId" },
+                { "--client-id", "clientId" },
+                { "--content-type-filter", "contentTypeFileter" },
+                { "--client-secret", "clientSecret" },
+                { "--show-versions", "showVersions" },
             };
             cb.AddCommandLine(_args, switchMappings);
             IConfiguration config = cb.Build();
