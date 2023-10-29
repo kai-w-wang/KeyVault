@@ -124,7 +124,7 @@ namespace KeyVaultTool {
                 && !string.IsNullOrEmpty(_options.ClientId)
                 && !string.IsNullOrEmpty(_options.Thumbprint)) {
                 var thumbprint = _options.Thumbprint.Trim();
-                using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+                using var store = new X509Store(StoreName.My, _options.StoreLocation);
                 store.Open(OpenFlags.ReadOnly);
                 // Find the certificate that matches the thumbprint.
                 var certCollection = store.Certificates.Find(
