@@ -9,6 +9,7 @@
         public string TenantId { set; get; }
         public string ClientId { set; get; }
         public string ClientSecret { set; get; }
+        public string Thumbprint { set; get; }
         public OperationMode Mode { get; set; } = OperationMode.Export;
         public string File { get; set; } = "CON";
         public string Filter { get; set; } = ".*";

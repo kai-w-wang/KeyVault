@@ -1,14 +1,17 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
+
 using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -117,31 +120,42 @@ namespace KeyVaultTool {
                 }
         }
         private Azure.Core.TokenCredential GetToken() {
-            if (string.IsNullOrEmpty(_options.ClientId) || string.IsNullOrEmpty(_options.ClientSecret)) {
-                DefaultAzureCredentialOptions options = new DefaultAzureCredentialOptions() {
-                    AuthorityHost = GetAuthorityHost(),
-                    ManagedIdentityClientId = _options.ClientId
+            if (!string.IsNullOrEmpty(_options.TenantId)
+                && !string.IsNullOrEmpty(_options.ClientId)
+                && !string.IsNullOrEmpty(_options.Thumbprint)) {
+                using var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+                store.Open(OpenFlags.ReadOnly);
+                var certificate = store.Certificates.Cast<X509Certificate2>().FirstOrDefault(cert => cert.Thumbprint == _options.Thumbprint);
+                ClientCertificateCredentialOptions certOptions = new ClientCertificateCredentialOptions {
+                    AuthorityHost = GetAuthorityHost(_options.Address)
                 };
-                return new DefaultAzureCredential(options);
-            } else {
+                return new ClientCertificateCredential(_options.TenantId, _options.ClientId, certificate, certOptions);
+            }
+
+            if (!string.IsNullOrEmpty(_options.TenantId)
+                && !string.IsNullOrEmpty(_options.ClientId)
+                && !string.IsNullOrEmpty(_options.ClientSecret
+                )) {
                 ClientSecretCredentialOptions options = new ClientSecretCredentialOptions();
-                options.AuthorityHost = GetAuthorityHost();
+                options.AuthorityHost = GetAuthorityHost(_options.Address);
                 return new ClientSecretCredential(_options.TenantId, _options.ClientId, _options.ClientSecret, options);
             }
+
+            var defaultOptions = new DefaultAzureCredentialOptions() {
+                AuthorityHost = GetAuthorityHost(_options.Address),
+                ManagedIdentityClientId = _options.ClientId
+            };
+            return new DefaultAzureCredential(defaultOptions);
         }
-        private Uri GetAuthorityHost() {
-            Uri kvAddress = new Uri(_options.Address);
-            var str = _options.Address;
+        private static Uri GetAuthorityHost(string uri) => GetAuthorityHost(new Uri(uri));
+        private static Uri GetAuthorityHost(Uri kvAddress) {
             var host = kvAddress.Host;
             var suffix = host.Substring(host.IndexOf('.') + 1);
-            switch (suffix) {
-                case "vault.azure.cn":
-                    return AzureAuthorityHosts.AzureChina;
-                case "vault.azure.net":
-                    return AzureAuthorityHosts.AzurePublicCloud;
-                default:
-                    return AzureAuthorityHosts.AzurePublicCloud;
-            }
+            return suffix switch {
+                "vault.azure.cn" => AzureAuthorityHosts.AzureChina,
+                "vault.azure.net" => AzureAuthorityHosts.AzurePublicCloud,
+                _ => AzureAuthorityHosts.AzurePublicCloud
+            };
         }
         async Task Help() {
             StringBuilder cb = new StringBuilder(4096);
