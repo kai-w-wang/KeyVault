@@ -123,13 +123,21 @@ namespace KeyVaultTool {
             if (!string.IsNullOrEmpty(_options.TenantId)
                 && !string.IsNullOrEmpty(_options.ClientId)
                 && !string.IsNullOrEmpty(_options.Thumbprint)) {
-                using var store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+                var thumbprint = _options.Thumbprint.Trim();
+                using var store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
                 store.Open(OpenFlags.ReadOnly);
-                var certificate = store.Certificates.Cast<X509Certificate2>().FirstOrDefault(cert => cert.Thumbprint == _options.Thumbprint);
-                ClientCertificateCredentialOptions certOptions = new ClientCertificateCredentialOptions {
-                    AuthorityHost = GetAuthorityHost(_options.Address)
-                };
-                return new ClientCertificateCredential(_options.TenantId, _options.ClientId, certificate, certOptions);
+                // Find the certificate that matches the thumbprint.
+                var certCollection = store.Certificates.Find(
+                    X509FindType.FindByThumbprint, thumbprint, false);
+                if (certCollection != null) {
+                    var certificate = certCollection.FirstOrDefault();
+                    if (certificate != null) {
+                        ClientCertificateCredentialOptions certOptions = new ClientCertificateCredentialOptions {
+                            AuthorityHost = GetAuthorityHost(_options.Address)
+                        };
+                        return new ClientCertificateCredential(_options.TenantId, _options.ClientId, certificate, certOptions);
+                    }
+                }
             }
 
             if (!string.IsNullOrEmpty(_options.TenantId)

@@ -1,4 +1,6 @@
-﻿namespace KeyVaultTool {
+﻿using System.Security.Cryptography.X509Certificates;
+
+namespace KeyVaultTool {
     public enum OperationMode {
         Export,
         Import,
@@ -17,5 +19,6 @@
         public string Tags { get; set; } = ".*";
         public bool ShowVersions { get; set; }
         public string ContentTypeFilter { get; set; } = null!;
+        public StoreLocation StoreLocation {get; set;} = StoreLocation.CurrentUser;
     }
 }
