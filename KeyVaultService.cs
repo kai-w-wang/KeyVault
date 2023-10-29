@@ -31,7 +31,7 @@ namespace KeyVaultTool {
             _logger = logger;
             _options = options.Value;
             _appLifetime = appLifetime;
-            if (string.IsNullOrWhiteSpace(_options?.Address))
+            if (string.IsNullOrWhiteSpace(_options.Address))
                 _options.Mode = OperationMode.Help;
             if (_options.Address != null && !_options.Address.Contains('.'))
                 _options.Address = $"https://{_options.Address}.vault.azure.net/";
@@ -58,7 +58,7 @@ namespace KeyVaultTool {
         async Task Import(CancellationToken stoppingToken) {
             var kv = new SecretClient(new Uri(_options.Address), GetToken());
             using (TextReader reader = string.Compare(_options.File, "CON", true) == 0 ? Console.In : File.OpenText(_options.File)) {
-                for (string line = await reader.ReadLineAsync(); line != null; line = await reader.ReadLineAsync()) {
+                for (var line = await reader.ReadLineAsync(); line != null; line = await reader.ReadLineAsync()) {
                     var items = line.Split('\t');
                     if (items.Length != 2)
                         continue;

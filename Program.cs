@@ -8,7 +8,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace KeyVaultTool {
     class Program {
-        static string[] _args;
+        static string[] _args = null!;
         public static async Task Main(string[] args) {
             _args = args;
             var host = Host.CreateDefaultBuilder(args)

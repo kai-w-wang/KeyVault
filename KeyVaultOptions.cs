@@ -5,17 +5,17 @@
         Help
     };
     public class KeyVaultOptions {
-        public string Address { set; get; }
-        public string TenantId { set; get; }
-        public string ClientId { set; get; }
-        public string ClientSecret { set; get; }
-        public string Thumbprint { set; get; }
+        public string Address { set; get; } = null!;
+        public string TenantId { set; get; } = null!;
+        public string ClientId { set; get; } = null!;
+        public string ClientSecret { set; get; } = null!;
+        public string Thumbprint { set; get; } = null!;
         public OperationMode Mode { get; set; } = OperationMode.Export;
         public string File { get; set; } = "CON";
         public string Filter { get; set; } = ".*";
         public string Delimiter { get; set; } = "\t";
         public string Tags { get; set; } = ".*";
         public bool ShowVersions { get; set; }
-        public string ContentTypeFilter { get; set; }
+        public string ContentTypeFilter { get; set; } = null!;
     }
 }
