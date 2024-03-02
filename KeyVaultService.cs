@@ -93,9 +93,13 @@ namespace KeyVaultTool {
                 foreach (var item in result) {
                     KeyVaultSecret secret = await kv.GetSecretAsync(item.Name);
                     //var secret = await kv.GetSecretAsync(item.Id, stoppingToken);
+                    var secretValue = secret.Value;
+                    if (_options.RemoveLineBreakFromValue)
+                        secretValue = secretValue.Replace("\n", "");
+
                     var valueList = new List<string>(){
                         secret.Name,
-                        secret.Value
+                        secretValue
                     };
                     // if (item.Tags != null)
                     //     valueList.AddRange(item.Tags.Values);
@@ -115,7 +119,10 @@ namespace KeyVaultTool {
                     foreach (var v in versions.OrderBy(v => v.Properties.UpdatedOn)) {
                         var id = v.Id.ToString();
                         var versionName = id.Substring(id.LastIndexOf('/') + 1);
-                        writer.WriteLine($"  {v.Properties.UpdatedOn:O}{versionName}\t{v.Value}");
+                        secretValue = v.Value;
+                        if (_options.RemoveLineBreakFromValue)
+                            secretValue = secretValue.Replace("\n", "");
+                        writer.WriteLine($"  {v.Properties.UpdatedOn:O}{versionName}\t{secretValue}");
                     }
                 }
         }
