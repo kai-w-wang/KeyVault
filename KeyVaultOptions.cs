@@ -18,7 +18,7 @@ namespace KeyVaultTool {
         public string Delimiter { get; set; } = "\t";
         public string Tags { get; set; } = ".*";
         public bool ShowVersions { get; set; }
-        public bool RemoveLineBreakFromValue { get; set; }
+        public bool Escape { get; set; }
         public string ContentTypeFilter { get; set; } = null!;
         public StoreLocation StoreLocation {get; set;} = StoreLocation.CurrentUser;
     }

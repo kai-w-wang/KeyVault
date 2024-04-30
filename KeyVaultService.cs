@@ -64,6 +64,8 @@ namespace KeyVaultTool {
                         continue;
                     var name = items[0];
                     var value = items[1];
+                    if (_options.Escape)
+                        value = Unescape(value);
                     Console.WriteLine(name);
                     try {
                         await kv.SetSecretAsync(name, value, stoppingToken);
@@ -94,8 +96,8 @@ namespace KeyVaultTool {
                     KeyVaultSecret secret = await kv.GetSecretAsync(item.Name);
                     //var secret = await kv.GetSecretAsync(item.Id, stoppingToken);
                     var secretValue = secret.Value;
-                    if (_options.RemoveLineBreakFromValue)
-                        secretValue = secretValue.Replace("\n", "");
+                    if (_options.Escape)
+                        secretValue = Escape(secretValue);
 
                     var valueList = new List<string>(){
                         secret.Name,
@@ -120,7 +122,7 @@ namespace KeyVaultTool {
                         var id = v.Id.ToString();
                         var versionName = id.Substring(id.LastIndexOf('/') + 1);
                         secretValue = v.Value;
-                        if (_options.RemoveLineBreakFromValue)
+                        if (_options.Escape)
                             secretValue = secretValue.Replace("\n", "");
                         writer.WriteLine($"  {v.Properties.UpdatedOn:O}{versionName}\t{secretValue}");
                     }
@@ -171,6 +173,20 @@ namespace KeyVaultTool {
                 "vault.azure.net" => AzureAuthorityHosts.AzurePublicCloud,
                 _ => AzureAuthorityHosts.AzurePublicCloud
             };
+        }
+        // private static string ToLiteral(string input) {
+        //     using (var writer = new StringWriter()) {
+        //         using (var provider = CodeDomProvider.CreateProvider("CSharp")) {
+        //             provider.GenerateCodeFromExpression(new CodePrimitiveExpression(input), writer, null);
+        //             return writer.ToString();
+        //         }
+        //     }
+        // }
+        private static string Escape(string valueTextForCompiler) {
+            return Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(valueTextForCompiler, false);
+        }
+        private static string Unescape (string str) {
+            return Regex.Unescape(str);
         }
         async Task Help() {
             StringBuilder cb = new StringBuilder(4096);
