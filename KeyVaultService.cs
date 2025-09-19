@@ -144,6 +144,9 @@ namespace KeyVaultTool {
                         ClientCertificateCredentialOptions certOptions = new ClientCertificateCredentialOptions {
                             AuthorityHost = GetAuthorityHost(_options.Address)
                         };
+                        foreach (var tenant in _options.AdditionallyAllowedTenants)
+                            if (!certOptions.AdditionallyAllowedTenants.Contains(tenant))
+                                certOptions.AdditionallyAllowedTenants.Add(tenant);
                         return new ClientCertificateCredential(_options.TenantId, _options.ClientId, certificate, certOptions);
                     }
                 }
@@ -155,6 +158,9 @@ namespace KeyVaultTool {
                 )) {
                 ClientSecretCredentialOptions options = new ClientSecretCredentialOptions();
                 options.AuthorityHost = GetAuthorityHost(_options.Address);
+                foreach(var tenant in _options.AdditionallyAllowedTenants) 
+                    if (!options.AdditionallyAllowedTenants.Contains(tenant))
+                        options.AdditionallyAllowedTenants.Add(tenant);            
                 return new ClientSecretCredential(_options.TenantId, _options.ClientId, _options.ClientSecret, options);
             }
 
@@ -162,6 +168,9 @@ namespace KeyVaultTool {
                 AuthorityHost = GetAuthorityHost(_options.Address),
                 ManagedIdentityClientId = _options.ClientId
             };
+            foreach(var tenant in _options.AdditionallyAllowedTenants) 
+                if (!defaultOptions.AdditionallyAllowedTenants.Contains(tenant))
+                    defaultOptions.AdditionallyAllowedTenants.Add(tenant);            
             return new DefaultAzureCredential(defaultOptions);
         }
         private static Uri GetAuthorityHost(string uri) => GetAuthorityHost(new Uri(uri));
@@ -185,7 +194,7 @@ namespace KeyVaultTool {
         private static string Escape(string valueTextForCompiler) {
             return Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(valueTextForCompiler, false);
         }
-        private static string Unescape (string str) {
+        private static string Unescape(string str) {
             return Regex.Unescape(str);
         }
         async Task Help() {

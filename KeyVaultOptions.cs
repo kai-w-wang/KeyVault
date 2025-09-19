@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography.X509Certificates;
+﻿using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 
 namespace KeyVaultTool {
     public enum OperationMode {
@@ -12,6 +13,7 @@ namespace KeyVaultTool {
         public string ClientId { set; get; } = null!;
         public string ClientSecret { set; get; } = null!;
         public string Thumbprint { set; get; } = null!;
+        public IList<string> AdditionallyAllowedTenants { get; } = ["*"];
         public OperationMode Mode { get; set; } = OperationMode.Export;
         public string File { get; set; } = "CON";
         public string Filter { get; set; } = ".*";
