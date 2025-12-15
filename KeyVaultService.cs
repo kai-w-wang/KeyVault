@@ -206,7 +206,7 @@ namespace KeyVaultTool {
             cb.AppendLine("  -p, --client-secret  Client secret");
             cb.AppendLine("  -m, --mode           Import/Export. Default: Export");
             cb.AppendLine("  -o, --file           File path to be used for import or export.");
-            cb.AppendLine("  -f, --filter         Filter rules regular expressioin.");
+            cb.AppendLine("  -f, --filter         Filter rules regular expression.");
             cb.AppendLine("  -v, --show-versions  Show versions.  Default: false. Format: {a.Updated.Value:O}{versionName}\t{value}");
             cb.AppendLine();
             cb.AppendLine("Samples:");
