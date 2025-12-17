@@ -8,8 +8,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-
+using Azure;
 using Azure.Identity;
+using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Secrets;
 
 using Microsoft.Azure.Services.AppAuthentication;
@@ -60,7 +61,7 @@ namespace KeyVaultTool {
             using (TextReader reader = string.Compare(_options.File, "CON", true) == 0 ? Console.In : File.OpenText(_options.File)) {
                 for (var line = await reader.ReadLineAsync(); line != null; line = await reader.ReadLineAsync()) {
                     var items = line.Split('\t');
-                    if (items.Length != 2)
+                    if (items.Length < 2)
                         continue;
                     var name = items[0];
                     var value = items[1];
@@ -68,7 +69,17 @@ namespace KeyVaultTool {
                         value = Unescape(value);
                     Console.WriteLine(name);
                     try {
-                        await kv.SetSecretAsync(name, value, stoppingToken);
+                        var contentType = items.Length > 2 ? items[2] : null;
+                        if (contentType == null)
+                            await kv.SetSecretAsync(new KeyVaultSecret(name, value), stoppingToken);
+                        else
+                            switch (contentType.ToLower()) {
+                                case "application/x-pkcs12":
+                                    break;
+                                default:
+                                    await kv.SetSecretAsync(new KeyVaultSecret(name, value) { Properties = { ContentType = contentType } }, stoppingToken);
+                                    break;
+                            }
                     }
                     catch (Exception ex) {
                         _logger.LogError(ex, "ExecuteAsync");
@@ -78,6 +89,14 @@ namespace KeyVaultTool {
             }
         }
         async Task Export(CancellationToken stoppingToken) {
+            if (_options.scopes.Contains("secrets"))
+                await ExportSecrets(stoppingToken);
+            if (_options.scopes.Contains("keys"))
+                await ExportKeys(stoppingToken);
+            if (_options.scopes.Contains("certificates"))
+                await ExportCertificates(stoppingToken);
+        }
+        async Task ExportSecrets(CancellationToken stoppingToken) {
             var list = new List<Azure.Security.KeyVault.Secrets.SecretProperties>();
             var secretClient = new SecretClient(new Uri(_options.Address), GetToken());
             var allSecrets = secretClient.GetPropertiesOfSecretsAsync(stoppingToken);
@@ -90,7 +109,7 @@ namespace KeyVaultTool {
             var emptyContentTypeFilter = string.IsNullOrEmpty(_options.ContentTypeFilter);
             var result = emptyContentTypeFilter ?
                 list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && string.IsNullOrEmpty(l.ContentType))
-                : list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && Regex.IsMatch(l.ContentType, _options.ContentTypeFilter));
+                : list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && !string.IsNullOrEmpty(l.ContentType) && Regex.IsMatch(l.ContentType, _options.ContentTypeFilter));
             using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.CreateText(_options.File))
                 foreach (var item in result) {
                     KeyVaultSecret secret = await secretClient.GetSecretAsync(item.Name);
@@ -103,6 +122,8 @@ namespace KeyVaultTool {
                         secret.Name,
                         secretValue
                     };
+                    if (secret.Properties.ContentType != null)
+                        valueList.Add(secret.Properties.ContentType);
                     // if (item.Tags != null)
                     //     valueList.AddRange(item.Tags.Values);
                     var line = string.Join(_options.Delimiter, valueList);
@@ -127,6 +148,18 @@ namespace KeyVaultTool {
                         writer.WriteLine($"  {v.Properties.UpdatedOn:O}{versionName}\t{secretValue}");
                     }
                 }
+        }
+        async Task ExportKeys(CancellationToken stoppingToken) {
+            await Task.CompletedTask;
+        }
+        async Task ExportCertificates(CancellationToken stoppingToken) {
+            // var client = new CertificateClient(new Uri(_options.Address), GetToken());
+            // AsyncPageable<CertificateProperties> allCertificates = client.GetPropertiesOfCertificatesAsync();
+            // await foreach (CertificateProperties certificateProperties in allCertificates) {
+            //     // Console.WriteLine(certificateProperties.Name);
+            //     var cert = await client.GetCertificateAsync(certificateProperties.Name, cancellationToken: stoppingToken);
+            // }
+            await Task.CompletedTask;
         }
         private Azure.Core.TokenCredential GetToken() {
             if (!string.IsNullOrEmpty(_options.TenantId)
@@ -158,9 +191,9 @@ namespace KeyVaultTool {
                 )) {
                 ClientSecretCredentialOptions options = new ClientSecretCredentialOptions();
                 options.AuthorityHost = GetAuthorityHost(_options.Address);
-                foreach(var tenant in _options.AdditionallyAllowedTenants) 
+                foreach (var tenant in _options.AdditionallyAllowedTenants)
                     if (!options.AdditionallyAllowedTenants.Contains(tenant))
-                        options.AdditionallyAllowedTenants.Add(tenant);            
+                        options.AdditionallyAllowedTenants.Add(tenant);
                 return new ClientSecretCredential(_options.TenantId, _options.ClientId, _options.ClientSecret, options);
             }
 
@@ -168,9 +201,9 @@ namespace KeyVaultTool {
                 AuthorityHost = GetAuthorityHost(_options.Address),
                 ManagedIdentityClientId = _options.ClientId
             };
-            foreach(var tenant in _options.AdditionallyAllowedTenants) 
+            foreach (var tenant in _options.AdditionallyAllowedTenants)
                 if (!defaultOptions.AdditionallyAllowedTenants.Contains(tenant))
-                    defaultOptions.AdditionallyAllowedTenants.Add(tenant);            
+                    defaultOptions.AdditionallyAllowedTenants.Add(tenant);
             return new DefaultAzureCredential(defaultOptions);
         }
         private static Uri GetAuthorityHost(string uri) => GetAuthorityHost(new Uri(uri));

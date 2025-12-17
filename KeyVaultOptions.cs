@@ -22,6 +22,7 @@ namespace KeyVaultTool {
         public bool ShowVersions { get; set; }
         public bool Escape { get; set; }
         public string ContentTypeFilter { get; set; } = null!;
+        public string[] scopes { get; set; } = ["secrets", "keys", "certificates"];
         public StoreLocation StoreLocation {get; set;} = StoreLocation.CurrentUser;
     }
 }
