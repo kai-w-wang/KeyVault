@@ -6,6 +6,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Text.Unicode;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
@@ -75,6 +76,10 @@ namespace KeyVaultTool {
                         else
                             switch (contentType.ToLower()) {
                                 case "application/x-pkcs12":
+                                    await ImportPfxCertificateAsync(name, value, stoppingToken);
+                                    break;
+                                case "application/x-pem-file":
+                                    await ImportPemCertificateAsync(name, value, stoppingToken);
                                     break;
                                 default:
                                     await kv.SetSecretAsync(new KeyVaultSecret(name, value) { Properties = { ContentType = contentType } }, stoppingToken);
@@ -87,6 +92,16 @@ namespace KeyVaultTool {
                     }
                 }
             }
+        }
+        async Task ImportPfxCertificateAsync(string name, string base64Value, CancellationToken stoppingToken = default) {
+            var client = new CertificateClient(new Uri(_options.Address), GetToken());
+            ImportCertificateOptions importOptions = new ImportCertificateOptions(name, Convert.FromBase64String(base64Value));
+            await client.ImportCertificateAsync(importOptions, stoppingToken);
+        }
+        async Task ImportPemCertificateAsync(string name, string value, CancellationToken stoppingToken = default) {
+            var client = new CertificateClient(new Uri(_options.Address), GetToken());
+            ImportCertificateOptions importOptions = new ImportCertificateOptions(name, Encoding.UTF8.GetBytes(value));
+            await client.ImportCertificateAsync(importOptions, stoppingToken);
         }
         async Task Export(CancellationToken stoppingToken) {
             if (_options.scopes.Contains("secrets"))
