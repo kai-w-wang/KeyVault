@@ -122,7 +122,7 @@ namespace KeyVaultTool {
                         secret.Name,
                         secretValue
                     };
-                    if (secret.Properties.ContentType != null)
+                    if (!string.IsNullOrWhiteSpace(secret.Properties.ContentType))
                         valueList.Add(secret.Properties.ContentType);
                     // if (item.Tags != null)
                     //     valueList.AddRange(item.Tags.Values);
