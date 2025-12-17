@@ -79,8 +79,8 @@ namespace KeyVaultTool {
         }
         async Task Export(CancellationToken stoppingToken) {
             var list = new List<Azure.Security.KeyVault.Secrets.SecretProperties>();
-            var kv = new SecretClient(new Uri(_options.Address), GetToken());
-            var allSecrets = kv.GetPropertiesOfSecretsAsync(stoppingToken);
+            var secretClient = new SecretClient(new Uri(_options.Address), GetToken());
+            var allSecrets = secretClient.GetPropertiesOfSecretsAsync(stoppingToken);
             await foreach (var secret in allSecrets) {
                 // Getting a disabled secret will fail, so skip disabled secrets.
                 if (!secret.Enabled.GetValueOrDefault())
@@ -93,7 +93,7 @@ namespace KeyVaultTool {
                 : list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && Regex.IsMatch(l.ContentType, _options.ContentTypeFilter));
             using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.CreateText(_options.File))
                 foreach (var item in result) {
-                    KeyVaultSecret secret = await kv.GetSecretAsync(item.Name);
+                    KeyVaultSecret secret = await secretClient.GetSecretAsync(item.Name);
                     //var secret = await kv.GetSecretAsync(item.Id, stoppingToken);
                     var secretValue = secret.Value;
                     if (_options.Escape)
@@ -110,12 +110,12 @@ namespace KeyVaultTool {
                     if (!_options.ShowVersions)
                         continue;
                     var versions = new List<KeyVaultSecret>();
-                    await foreach (var v in kv.GetPropertiesOfSecretVersionsAsync(secret.Name)) {
+                    await foreach (var v in secretClient.GetPropertiesOfSecretVersionsAsync(secret.Name)) {
                         // Secret versions may also be disabled if compromised and new versions generated, so skip disabled versions, too.
                         if (!v.Enabled.GetValueOrDefault()) {
                             continue;
                         }
-                        KeyVaultSecret versionValue = await kv.GetSecretAsync(v.Name, v.Version);
+                        KeyVaultSecret versionValue = await secretClient.GetSecretAsync(v.Name, v.Version);
                         versions.Add(versionValue);
                     }
                     foreach (var v in versions.OrderBy(v => v.Properties.UpdatedOn)) {
