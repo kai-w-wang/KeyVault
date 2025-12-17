@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlTypes;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
@@ -12,6 +13,7 @@ using System.Threading.Tasks;
 using Azure;
 using Azure.Identity;
 using Azure.Security.KeyVault.Certificates;
+using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Secrets;
 
 using Microsoft.Azure.Services.AppAuthentication;
@@ -81,6 +83,9 @@ namespace KeyVaultTool {
                                 case "application/x-pem-file":
                                     await ImportPemCertificateAsync(name, value, stoppingToken);
                                     break;
+                                case "application/x-key-backup":
+                                    await ImportKeyBackupAsync(name, value, stoppingToken);
+                                    break;
                                 default:
                                     await kv.SetSecretAsync(new KeyVaultSecret(name, value) { Properties = { ContentType = contentType } }, stoppingToken);
                                     break;
@@ -102,6 +107,10 @@ namespace KeyVaultTool {
             var client = new CertificateClient(new Uri(_options.Address), GetToken());
             ImportCertificateOptions importOptions = new ImportCertificateOptions(name, Encoding.UTF8.GetBytes(value));
             await client.ImportCertificateAsync(importOptions, stoppingToken);
+        }
+        async Task ImportKeyBackupAsync(string name, string value, CancellationToken stoppingToken = default) {
+            KeyClient client = new KeyClient(new Uri(_options.Address), GetToken());
+            await client.RestoreKeyBackupAsync(Convert.FromBase64String(value), stoppingToken);
         }
         async Task Export(CancellationToken stoppingToken) {
             if (_options.scopes.Contains("secrets"))
@@ -165,6 +174,20 @@ namespace KeyVaultTool {
                 }
         }
         async Task ExportKeys(CancellationToken stoppingToken) {
+            KeyClient client = new KeyClient(new Uri(_options.Address), GetToken());
+            AsyncPageable<KeyProperties> allKeys = client.GetPropertiesOfKeysAsync();
+            var keyDictionary = new Dictionary<string, byte[]>();
+            await foreach (KeyProperties key in allKeys) {
+                Response<byte[]> backupBytes = await client.BackupKeyAsync(key.Name);
+                keyDictionary[key.Name] = backupBytes.Value;
+            }
+            using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.CreateText(_options.File)) {
+                foreach (var entry in keyDictionary) {
+                    string[] valueList = [entry.Key,  Convert.ToBase64String(entry.Value), "application/x-key-backup"];
+                    var line = string.Join(_options.Delimiter, valueList);
+                    writer.WriteLine(line);
+                }
+            }
             await Task.CompletedTask;
         }
         async Task ExportCertificates(CancellationToken stoppingToken) {
