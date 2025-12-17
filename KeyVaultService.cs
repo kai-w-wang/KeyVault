@@ -124,7 +124,7 @@ namespace KeyVaultTool {
             var emptyContentTypeFilter = string.IsNullOrEmpty(_options.ContentTypeFilter);
             var result = emptyContentTypeFilter ?
                 list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && string.IsNullOrEmpty(l.ContentType))
-                : list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && !string.IsNullOrEmpty(l.ContentType) && Regex.IsMatch(l.ContentType, _options.ContentTypeFilter));
+                : list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && Regex.IsMatch(l.ContentType ?? string.Empty, _options.ContentTypeFilter));
             using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.CreateText(_options.File))
                 foreach (var item in result) {
                     KeyVaultSecret secret = await secretClient.GetSecretAsync(item.Name);
