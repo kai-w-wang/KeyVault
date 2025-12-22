@@ -44,4 +44,4 @@ jobs:
           drops/win-x64/KeyVault.exe
         tag_name: v1.0.${{ github.run_number }}
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        ACCESS_TOKEN: ${{ secrets.release_token }}
