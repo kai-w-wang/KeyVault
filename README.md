@@ -18,26 +18,27 @@ dotnet publish -c Release  -p:PublishSingleFile=true -r win-x64 --self-contained
     ```cmd
     c:\>c:\tools\keyvault
     info: KeyVaultTool.KeyVaultService[0]
-        Author: Kai Wang
+      Version: 1.0.0.0, Author: Kai Wang
 
-        Options:
-            -a, --address        Azure Key Vault addresss.
-            -c, --config         Config file
-            -t, --tenant-id      Tenant id
-            -u, --client-id      Client id
-            -p, --client-secret  Client secret
-            -m, --mode           Import/Export. Default: Export
-            -o, --file           File path to be used for import or export
-            -s, --scopes         Scopes. Default: secrets,keys,certificates
-            -f, --filter         Filter rules regular expression
-            -v, --show-versions  Show versions.  Default: false. Format: {a.Updated.Value:O}{versionName}   {value}
+      Options:
+        -a, --address        Azure Key Vault addresss.
+        -c, --config         Config file (json|xml|ini|yaml|yml)
+        -t, --tenant-id      Tenant id
+        -u, --client-id      Client id
+        -p, --client-secret  Client secret
+        -m, --mode           Import/Export. Default: Export
+        -o, --file           File path to be used for import or export
+        -s, --scopes         Scopes. Default: secrets,keys,certificates
+        -f, --filter         Filter rules regular expression
+        -v, --show-versions  Show versions.  Default: false. Format: {a.Updated.Value:O}{versionName}   {value}
 
-        Samples:
-            --address https://sample.vault.azure.net/
-            --address https://sample.vault.azure.cn/ --filter .*Vault.*
-            --address https://sample.vault.azure.cn/ --tenant-id {tenant} --client-id {guid} --client-secret {secret}
-            --address https://sample.vault.azure.cn/ --tenant-id {tenant} --client-id {guid} --client-secret {secret} --mode import --file output.txt
-            --address https://sample.vault.azure.cn/ --tenant-id {tenant} --client-id {guid} --client-secret {secret} --mode export --file output.txt
+      Samples:
+        KeyVault --address https://sample.vault.azure.net/
+        KeyVault --address https://sample.vault.azure.net/ --filter .*Vault.*
+        KeyVault --address https://sample.vault.azure.net/ --tenant-id {tenant} --client-id {guid} --client-secret {secret} --mode import --file output.txt
+        KeyVault --address https://sample.vault.azure.net/ --tenant-id {tenant} --client-id {guid} --client-secret {secret} --mode export --file output.txt
+        KeyVault --config config.yml
+
     ```
 
 1. Export key vault content with default Azure credential (Environmental Variables, Azure CLI, Visual Studio, or Visual Studio)

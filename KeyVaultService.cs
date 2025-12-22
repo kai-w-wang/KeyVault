@@ -270,11 +270,11 @@ namespace KeyVaultTool {
         }
         async Task Help() {
             StringBuilder cb = new StringBuilder(4096);
-            cb.AppendLine("Author: Kai Wang");
+            cb.AppendLine($"Version: {typeof(Program).Assembly.GetName().Version}, Author: Kai Wang");
             cb.AppendLine();
             cb.AppendLine("Options:");
             cb.AppendLine("  -a, --address        Azure Key Vault addresss.");
-            cb.AppendLine("  -c, --config         Config file");
+            cb.AppendLine("  -c, --config         Config file (json|xml|ini|yaml|yml)");
             cb.AppendLine("  -t, --tenant-id      Tenant id");
             cb.AppendLine("  -u, --client-id      Client id");
             cb.AppendLine("  -p, --client-secret  Client secret");
@@ -285,11 +285,11 @@ namespace KeyVaultTool {
             cb.AppendLine("  -v, --show-versions  Show versions.  Default: false. Format: {a.Updated.Value:O}{versionName}\t{value}");
             cb.AppendLine();
             cb.AppendLine("Samples:");
-            cb.AppendLine("  --address https://sample.vault.azure.net/");
-            cb.AppendLine("  --address https://sample.vault.azure.cn/ --filter .*Vault.*");
-            cb.AppendLine("  --address https://sample.vault.azure.cn/ --tenant-id {tenant} --client-id {guid} --client-secret {secret}");
-            cb.AppendLine("  --address https://sample.vault.azure.cn/ --tenant-id {tenant} --client-id {guid} --client-secret {secret} --mode import --file output.txt");
-            cb.AppendLine("  --address https://sample.vault.azure.cn/ --tenant-id {tenant} --client-id {guid} --client-secret {secret} --mode export --file output.txt");
+            cb.AppendLine("  KeyVault --address https://sample.vault.azure.net/");
+            cb.AppendLine("  KeyVault --address https://sample.vault.azure.net/ --filter .*Vault.*");
+            cb.AppendLine("  KeyVault --address https://sample.vault.azure.net/ --tenant-id {tenant} --client-id {guid} --client-secret {secret} --mode import --file output.txt");
+            cb.AppendLine("  KeyVault --address https://sample.vault.azure.net/ --tenant-id {tenant} --client-id {guid} --client-secret {secret} --mode export --file output.txt");
+            cb.AppendLine("  KeyVault --config config.yml");
             _logger.LogInformation(cb.ToString());
             await Task.CompletedTask;
         }
