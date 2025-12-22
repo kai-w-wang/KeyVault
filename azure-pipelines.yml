@@ -26,7 +26,7 @@ stages:
         arguments: '--configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/linux-x64 --runtime linux-x64 --self-contained true /p:PublishTrimmed=true'
       enabled: "false"
     - script: |
-        dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/win-x64 --runtime win-x64 --self-contained true /p:PublishTrimmed=true
-        dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/linux-x64 --runtime linux-x64 --self-contained true /p:PublishTrimmed=true
+        dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/win-x64 --runtime win-x64 --self-contained true /p:PublishTrimmed=true KeyVault.csproj
+        dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/linux-x64 --runtime linux-x64 --self-contained true /p:PublishTrimmed=true KeyVault.csproj
       displayName: 'dotnet publish'
     - publish: $(build.artifactstagingdirectory)
