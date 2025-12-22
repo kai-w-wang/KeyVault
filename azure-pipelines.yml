@@ -5,7 +5,7 @@ stages:
     pool:
       name: ubuntu
     variables:
-      project: '**/*.csproj'
+      project: 'KeyVault.csproj'
       buildPlatform: 'Any CPU'
       buildConfiguration: 'Release'
     steps:
@@ -17,16 +17,8 @@ stages:
       inputs:
         packageType: sdk
         version: 10.x
-    - task: DotNetCoreCLI@2
-      displayName: Publish
-      inputs:
-        command: 'publish'
-        publishWebProjects: false
-        projects: '$(project)'
-        arguments: '--configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/linux-x64 --runtime linux-x64 --self-contained true /p:PublishTrimmed=true'
-      enabled: "false"
     - script: |
-        dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/win-x64 --runtime win-x64 --self-contained true /p:PublishTrimmed=true KeyVault.csproj
-        dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/linux-x64 --runtime linux-x64 --self-contained true /p:PublishTrimmed=true KeyVault.csproj
+        dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/win-x64 --runtime win-x64 --self-contained true /p:PublishTrimmed=true
+        dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/linux-x64 --runtime linux-x64 --self-contained true /p:PublishTrimmed=true
       displayName: 'dotnet publish'
     - publish: $(build.artifactstagingdirectory)
