@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlTypes;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Text.Unicode;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
@@ -15,12 +13,9 @@ using Azure.Identity;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Secrets;
-
-using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 namespace KeyVaultTool {
     public class KeyVaultService : BackgroundService {
@@ -276,13 +271,13 @@ namespace KeyVaultTool {
             cb.AppendLine("Options:");
             cb.AppendLine("  -a, --address        Azure Key Vault addresss.");
             cb.AppendLine("  -c, --config         Config file (json|xml|ini|yaml|yml)");
-            cb.AppendLine("  -t, --tenant-id      Tenant id");
-            cb.AppendLine("  -u, --client-id      Client id");
-            cb.AppendLine("  -p, --client-secret  Client secret");
+            cb.AppendLine("  -f, --filter         Filter rules regular expression");
             cb.AppendLine("  -m, --mode           Import/Export. Default: Export");
             cb.AppendLine("  -o, --file           File path to be used for import or export");
+            cb.AppendLine("  -p, --client-secret  Client secret");
             cb.AppendLine("  -s, --scopes         Scopes. Default: secrets,keys,certificates");
-            cb.AppendLine("  -f, --filter         Filter rules regular expression");
+            cb.AppendLine("  -t, --tenant-id      Tenant id");
+            cb.AppendLine("  -u, --client-id      Client id");
             cb.AppendLine("  -v, --show-versions  Show versions.  Default: false. Format: {a.Updated.Value:O}{versionName}\t{value}");
             cb.AppendLine();
             cb.AppendLine("Samples:");
