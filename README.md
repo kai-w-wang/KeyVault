@@ -4,7 +4,7 @@ Azure Key Vault Tool to import/export secrets, keys and certificates.
 
 This repo requires .NET SDK version 10 or later.
 
-## Run keyvault.cs directly
+## dotnet run KeyVault.cs
 
 ```cmd
 dotnet run KeyVault.cs -- --help
