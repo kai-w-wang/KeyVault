@@ -178,6 +178,8 @@ namespace KeyVaultTool {
             AsyncPageable<KeyProperties> allKeys = client.GetPropertiesOfKeysAsync();
             var keyDictionary = new Dictionary<string, byte[]>();
             await foreach (KeyProperties key in allKeys) {
+                if (key.Managed)
+                    continue;
                 Response<byte[]> backupBytes = await client.BackupKeyAsync(key.Name);
                 keyDictionary[key.Name] = backupBytes.Value;
             }
@@ -188,7 +190,6 @@ namespace KeyVaultTool {
                     writer.WriteLine(line);
                 }
             }
-            await Task.CompletedTask;
         }
         async Task ExportCertificates(CancellationToken stoppingToken) {
             // var client = new CertificateClient(new Uri(_options.Address), GetToken());
