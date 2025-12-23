@@ -24,12 +24,12 @@ jobs:
       run: |
         dotnet publish KeyVault.csproj --output drops/linux-x64 --runtime linux-x64 --self-contained true -p:PublishSingleFile=true -p:AssemblyVersion=1.0.0.${{ github.run_number }} -p:Version=1.0.0.${{ github.run_number }}
         dotnet publish KeyVault.csproj --output drops/win-x64 --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:AssemblyVersion=1.0.0.${{ github.run_number }} -p:Version=1.0.0.${{ github.run_number }}
-    - name: zip Artifacts
+    - name: zip artifacts
       if: github.event_name != 'pull_request'
       run: |
         zip -j drops/keyvault_linux_x64_1.0.${{ github.run_number }}.zip  drops/linux-x64/KeyVault
         zip -j drops/keyvault_win_x64_1.0.${{ github.run_number }}.zip  drops/win-x64/KeyVault.exe
-    - name: Create GitHub Release and Upload Assets
+    - name: release
       if: github.event_name != 'pull_request'
       uses: softprops/action-gh-release@v2
       with:
