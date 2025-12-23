@@ -113,14 +113,17 @@ namespace KeyVaultTool {
             await client.RestoreKeyBackupAsync(Convert.FromBase64String(value), stoppingToken);
         }
         async Task Export(CancellationToken stoppingToken) {
-            if (_options.scopes.Contains("secrets"))
-                await ExportSecrets(stoppingToken);
-            if (_options.scopes.Contains("keys"))
-                await ExportKeys(stoppingToken);
-            if (_options.scopes.Contains("certificates"))
-                await ExportCertificates(stoppingToken);
+            bool toConsole = string.Compare(_options.File, "CON", true) == 0;
+            using (TextWriter writer = toConsole ? Console.Out : File.CreateText(_options.File)) {
+                if (_options.scopes.Contains("secrets"))
+                    await ExportSecrets(writer, stoppingToken);
+                if (_options.scopes.Contains("keys"))
+                    await ExportKeys(writer, stoppingToken);
+                if (_options.scopes.Contains("certificates"))
+                    await ExportCertificates(writer, stoppingToken);
+            }
         }
-        async Task ExportSecrets(CancellationToken stoppingToken) {
+        async Task ExportSecrets(TextWriter writer, CancellationToken stoppingToken) {
             var list = new List<Azure.Security.KeyVault.Secrets.SecretProperties>();
             var secretClient = new SecretClient(new Uri(_options.Address), GetToken());
             var allSecrets = secretClient.GetPropertiesOfSecretsAsync(stoppingToken);
@@ -134,46 +137,45 @@ namespace KeyVaultTool {
             var result = emptyContentTypeFilter ?
                 list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && string.IsNullOrEmpty(l.ContentType))
                 : list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && Regex.IsMatch(l.ContentType ?? string.Empty, _options.ContentTypeFilter));
-            using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.CreateText(_options.File))
-                foreach (var item in result) {
-                    KeyVaultSecret secret = await secretClient.GetSecretAsync(item.Name);
-                    //var secret = await kv.GetSecretAsync(item.Id, stoppingToken);
-                    var secretValue = secret.Value;
-                    if (_options.Escape)
-                        secretValue = Escape(secretValue);
+            foreach (var item in result) {
+                KeyVaultSecret secret = await secretClient.GetSecretAsync(item.Name);
+                //var secret = await kv.GetSecretAsync(item.Id, stoppingToken);
+                var secretValue = secret.Value;
+                if (_options.Escape)
+                    secretValue = Escape(secretValue);
 
-                    var valueList = new List<string>(){
+                var valueList = new List<string>(){
                         secret.Name,
                         secretValue
                     };
-                    if (!string.IsNullOrWhiteSpace(secret.Properties.ContentType))
-                        valueList.Add(secret.Properties.ContentType);
-                    // if (item.Tags != null)
-                    //     valueList.AddRange(item.Tags.Values);
-                    var line = string.Join(_options.Delimiter, valueList);
-                    writer.WriteLine(line);
-                    if (!_options.ShowVersions)
+                if (!string.IsNullOrWhiteSpace(secret.Properties.ContentType))
+                    valueList.Add(secret.Properties.ContentType);
+                // if (item.Tags != null)
+                //     valueList.AddRange(item.Tags.Values);
+                var line = string.Join(_options.Delimiter, valueList);
+                writer.WriteLine(line);
+                if (!_options.ShowVersions)
+                    continue;
+                var versions = new List<KeyVaultSecret>();
+                await foreach (var v in secretClient.GetPropertiesOfSecretVersionsAsync(secret.Name)) {
+                    // Secret versions may also be disabled if compromised and new versions generated, so skip disabled versions, too.
+                    if (!v.Enabled.GetValueOrDefault()) {
                         continue;
-                    var versions = new List<KeyVaultSecret>();
-                    await foreach (var v in secretClient.GetPropertiesOfSecretVersionsAsync(secret.Name)) {
-                        // Secret versions may also be disabled if compromised and new versions generated, so skip disabled versions, too.
-                        if (!v.Enabled.GetValueOrDefault()) {
-                            continue;
-                        }
-                        KeyVaultSecret versionValue = await secretClient.GetSecretAsync(v.Name, v.Version);
-                        versions.Add(versionValue);
                     }
-                    foreach (var v in versions.OrderBy(v => v.Properties.UpdatedOn)) {
-                        var id = v.Id.ToString();
-                        var versionName = id.Substring(id.LastIndexOf('/') + 1);
-                        secretValue = v.Value;
-                        if (_options.Escape)
-                            secretValue = secretValue.Replace("\n", "");
-                        writer.WriteLine($"  {v.Properties.UpdatedOn:O}{versionName}\t{secretValue}");
-                    }
+                    KeyVaultSecret versionValue = await secretClient.GetSecretAsync(v.Name, v.Version);
+                    versions.Add(versionValue);
                 }
+                foreach (var v in versions.OrderBy(v => v.Properties.UpdatedOn)) {
+                    var id = v.Id.ToString();
+                    var versionName = id.Substring(id.LastIndexOf('/') + 1);
+                    secretValue = v.Value;
+                    if (_options.Escape)
+                        secretValue = secretValue.Replace("\n", "");
+                    writer.WriteLine($"  {v.Properties.UpdatedOn:O}{versionName}\t{secretValue}");
+                }
+            }
         }
-        async Task ExportKeys(CancellationToken stoppingToken) {
+        async Task ExportKeys(TextWriter writer, CancellationToken stoppingToken) {
             KeyClient client = new KeyClient(new Uri(_options.Address), GetToken());
             AsyncPageable<KeyProperties> allKeys = client.GetPropertiesOfKeysAsync();
             var keyDictionary = new Dictionary<string, byte[]>();
@@ -183,15 +185,13 @@ namespace KeyVaultTool {
                 Response<byte[]> backupBytes = await client.BackupKeyAsync(key.Name);
                 keyDictionary[key.Name] = backupBytes.Value;
             }
-            using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.AppendText(_options.File)) {
-                foreach (var entry in keyDictionary) {
-                    string[] valueList = [entry.Key,  Convert.ToBase64String(entry.Value), "application/x-key-backup"];
-                    var line = string.Join(_options.Delimiter, valueList);
-                    writer.WriteLine(line);
-                }
+            foreach (var entry in keyDictionary) {
+                string[] valueList = [entry.Key, Convert.ToBase64String(entry.Value), "application/x-key-backup"];
+                var line = string.Join(_options.Delimiter, valueList);
+                writer.WriteLine(line);
             }
         }
-        async Task ExportCertificates(CancellationToken stoppingToken) {
+        async Task ExportCertificates(TextWriter writer, CancellationToken stoppingToken) {
             // var client = new CertificateClient(new Uri(_options.Address), GetToken());
             // AsyncPageable<CertificateProperties> allCertificates = client.GetPropertiesOfCertificatesAsync();
             // await foreach (CertificateProperties certificateProperties in allCertificates) {
