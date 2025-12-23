@@ -27,6 +27,7 @@ jobs:
         zip -j drops/keyvault_linux_x64_1.0.${{ github.run_number }}.zip  drops/linux-x64/KeyVault
         zip -j drops/keyvault_win_x64_1.0.${{ github.run_number }}.zip  drops/win-x64/KeyVault.exe
     - name: Create GitHub Release and Upload Assets
+      if: github.event_name != 'pull_request'
       uses: softprops/action-gh-release@v2
       with:
         files: |
@@ -35,3 +36,4 @@ jobs:
         tag_name: v1.0.${{ github.run_number }}
       env:
         GITHUB_TOKEN: ${{ secrets.release_token }}
+  
