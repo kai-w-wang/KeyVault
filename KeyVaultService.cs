@@ -183,7 +183,7 @@ namespace KeyVaultTool {
                 Response<byte[]> backupBytes = await client.BackupKeyAsync(key.Name);
                 keyDictionary[key.Name] = backupBytes.Value;
             }
-            using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.CreateText(_options.File)) {
+            using (TextWriter writer = string.Compare(_options.File, "CON", true) == 0 ? Console.Out : File.AppendText(_options.File)) {
                 foreach (var entry in keyDictionary) {
                     string[] valueList = [entry.Key,  Convert.ToBase64String(entry.Value), "application/x-key-backup"];
                     var line = string.Join(_options.Delimiter, valueList);
