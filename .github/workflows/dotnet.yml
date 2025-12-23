@@ -22,8 +22,8 @@ jobs:
         dotnet-version: 10.x
     - name: dotnet publish
       run: |
-        dotnet publish KeyVault.csproj --output drops/linux-x64 --runtime linux-x64 --self-contained true -p:PublishSingleFile=true -p:AssemblyVersion=1.0.0.${{ github.run_number }} -p:Version=1.0.0.${{ github.run_number }}
-        dotnet publish KeyVault.csproj --output drops/win-x64 --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:AssemblyVersion=1.0.0.${{ github.run_number }} -p:Version=1.0.0.${{ github.run_number }}
+        dotnet publish KeyVault.cs --output drops/linux-x64 --runtime linux-x64 --self-contained true -p:PublishSingleFile=true -p:AssemblyVersion=1.0.0.${{ github.run_number }} -p:Version=1.0.0.${{ github.run_number }}
+        dotnet publish KeyVault.cs --output drops/win-x64 --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:AssemblyVersion=1.0.0.${{ github.run_number }} -p:Version=1.0.0.${{ github.run_number }}
     - name: zip artifacts
       if: github.event_name != 'pull_request'
       run: |
