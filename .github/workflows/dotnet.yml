@@ -23,12 +23,12 @@ jobs:
         dotnet publish KeyVault.cs --output drops/linux-x64 --runtime linux-x64 --self-contained true -p:PublishSingleFile=true -p:AssemblyVersion=1.0.0.${{ github.run_number }} -p:Version=1.0.0.${{ github.run_number }}
     - name: zip artifacts
       run: |
-        zip -j ${{ github.workspace }}/keyvault_linux_x64_1.0.${{ github.run_number }}.zip  drops/linux-x64/KeyVault
+        zip -j keyvault_linux_x64_1.0.${{ github.run_number }}.zip  drops/linux-x64/KeyVault
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: keyvault_linux_x64
-        path: ${{ github.workspace }}/keyvault_linux_x64_v1.0.${{ github.run_number }}.zip
+        path: keyvault_linux_x64_1.0.${{ github.run_number }}.zip
 
   build-win:
     runs-on: windows-latest
@@ -41,12 +41,12 @@ jobs:
     - name: dotnet publish
       run: |
         dotnet publish KeyVault.cs --output drops --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:AssemblyVersion=1.0.0.${{ github.run_number }} -p:Version=1.0.0.${{ github.run_number }}
-        Compress-Archive -Path drops\\KeyVault.exe -DestinationPath ${{github.workspace}}\\keyvault_win_x64_1.0.${{ github.run_number }}.zip
+        Compress-Archive -Path drops\\KeyVault.exe -DestinationPath keyvault_win_x64_1.0.${{ github.run_number }}.zip
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: keyvault_win_x64
-        path: ${{ github.workspace }}\\kkeyvault_win_x64_v1.0.${{ github.run_number }}.zip
+        path: keyvault_win_x64_1.0.${{ github.run_number }}.zip
 
   release:
     # if: github.event_name != 'pull_request'
