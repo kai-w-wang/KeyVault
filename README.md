@@ -50,7 +50,7 @@ dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.
 
     ```cmd
     REM Export content into console output (stdout)
-    keyvault --Address https://{name}.vault.azure.cn/
+    keyvault --Address https://{name}.vault.azure.net/
     REM Export content into file instead of console output (stdout)
     keyvault --address https://{name}.vault.azure.net --filter .*Vault.*  --file output.txt
     ```
@@ -58,13 +58,13 @@ dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.
 1. Export key vault content with SPN:
 
     ```cmd
-    keyvault --Address https://{name}.vault.azure.cn/ --client-id {guid} --client-secret "****"
+    keyvault --Address https://{name}.vault.azure.net/ --client-id {guid} --client-secret "****"
     ```
 
 1. Import from file into Key Vault:
 
     ```cmd
-    keyvault --Address "https://{name}.vault.azure.cn/" --client-id {guid} --client-secret "****" --mode Import --file kv.txt
+    keyvault --Address "https://{name}.vault.azure.net/" --client-id {guid} --client-secret "****" --mode Import --file kv.txt
     ```
 
 1. Execute KeyVaultTool with configuration file:
@@ -76,14 +76,22 @@ dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.
     Sample config.yml
 
     ```yaml
-    Address: https://{name}.vault.azure.cn/
+    Address: https://{name}.vault.azure.net/
     TenantId: {TenantId}
     # ClientId: 
     # ClientSecret: 
     # Thumbprint: 
     Mode: Export
-    File: kv.txt
+    File: kv.tsv
     ShowVersions: false
     ContentTypeFilter: ".*"
     Escape: true
+    ```
+
+    Sample kv.tsv
+
+    ```tsv
+    sample-secret	sample value
+    sample-pem-certificate	-----BEGIN PRIVATE KEY-----\n...\n-----END CERTIFICATE-----\n	application/x-pem-file
+    sample-pfx-certificate	MIIV...	application/x-pkcs12
     ```
