@@ -60,12 +60,12 @@ jobs:
       # - uses: actions/checkout@v4
       - name: download artifact
         uses: actions/download-artifact@v7
-      - name: create a release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            keyvault_linux_x64/keyvault_linux_x64_1.0.${{ github.run_number }}.zip
-            keyvault_win_x64/keyvault_win_x64_1.0.${{ github.run_number }}.zip
-          tag_name: v1.0.${{ github.run_number }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.release_token }}
+      # - name: create a release
+      #   uses: softprops/action-gh-release@v2
+      #   with:
+      #     files: |
+      #       keyvault_linux_x64/keyvault_linux_x64_1.0.${{ github.run_number }}.zip
+      #       keyvault_win_x64/keyvault_win_x64_1.0.${{ github.run_number }}.zip
+      #     tag_name: v1.0.${{ github.run_number }}
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.release_token }}
