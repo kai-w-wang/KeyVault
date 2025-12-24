@@ -18,6 +18,7 @@ stages:
         packageType: sdk
         version: 10.x
     - script: |
+        sudo apt install clang zlib1g-dev
         dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/win-x64 --runtime win-x64 --self-contained true -p:PublishSingleFile=true
         dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/linux-x64 --runtime linux-x64 --self-contained true -p:PublishSingleFile=true
       displayName: 'dotnet publish'
