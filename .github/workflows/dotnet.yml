@@ -55,6 +55,7 @@ jobs:
       - build-linux
       - build-win
     steps:
+    - uses: actions/checkout@v4      
     - name: download artifact
       uses: actions/download-artifact@v5
     - name: release
