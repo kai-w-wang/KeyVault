@@ -10,10 +10,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-
+  build-linux:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET SDK 10.x
@@ -29,14 +27,48 @@ jobs:
       run: |
         zip -j drops/keyvault_linux_x64_1.0.${{ github.run_number }}.zip  drops/linux-x64/KeyVault
         zip -j drops/keyvault_win_x64_1.0.${{ github.run_number }}.zip  drops/win-x64/KeyVault.exe
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: keyvault_linux_x64
+        path: drops/keyvault_linux_x64_v1.0.${{ github.run_number }}.zip
+
+  build-win:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET SDK 10.x
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.x
+    - name: dotnet publish
+      run: |
+        dotnet publish KeyVault.cs --output drops/win-x64 --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:AssemblyVersion=1.0.0.${{ github.run_number }} -p:Version=1.0.0.${{ github.run_number }}
+    - name: zip artifacts
+      if: github.event_name != 'pull_request'
+      run: |
+        zip -j drops/keyvault_win_x64_1.0.${{ github.run_number }}.zip  drops/win-x64/KeyVault.exe
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: keyvault_win_x64
+        path: drops/keyvault_win_x64_v1.0.${{ github.run_number }}.zip
+
+  release:
+    runs-on: linux-latest
+    needs: 
+      - build-linux
+      - build-win
+    steps:
+    - name: download artifact
+      uses: actions/download-artifact@v5
     - name: release
       if: github.event_name != 'pull_request'
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          drops/keyvault_linux_x64_1.0.${{ github.run_number }}.zip
-          drops/keyvault_win_x64_1.0.${{ github.run_number }}.zip
+          keyvault_linux_x64/keyvault_linux_x64_1.0.${{ github.run_number }}.zip
+          keyvault_win_x64/keyvault_win_x64_1.0.${{ github.run_number }}.zip
         tag_name: v1.0.${{ github.run_number }}
       env:
-        GITHUB_TOKEN: ${{ secrets.release_token }}
-  
+        GITHUB_TOKEN: ${{ secrets.release_token }}  
