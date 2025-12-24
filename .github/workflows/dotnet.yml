@@ -49,7 +49,7 @@ jobs:
         path: ${{ github.workspace }}\\kkeyvault_win_x64_v1.0.${{ github.run_number }}.zip
 
   release:
-    if: github.event_name != 'pull_request'
+    # if: github.event_name != 'pull_request'
     runs-on: linux-latest
     needs: 
       - build-linux
