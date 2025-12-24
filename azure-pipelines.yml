@@ -5,7 +5,7 @@ stages:
     pool:
       name: ubuntu
     variables:
-      project: 'KeyVault.csproj'
+      project: 'KeyVault.cs'
       buildPlatform: 'Any CPU'
       buildConfiguration: 'Release'
     steps:

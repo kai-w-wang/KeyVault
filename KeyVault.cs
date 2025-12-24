@@ -1,24 +1,149 @@
-﻿using System;
-using System.Collections.Generic;
+#!/usr/bin/dotnet run
+/*
+MIT License
+
+Copyright (c) 2025 Kai Wang
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+#:sdk Microsoft.NET.Sdk
+#:package Azure.Extensions.AspNetCore.Configuration.Secrets@1.4.0
+#:package Azure.Identity@1.17.1
+#:package Azure.Security.KeyVault.Certificates@4.8.0
+#:package Azure.Security.KeyVault.Keys@4.8.0
+#:package Azure.Security.KeyVault.Secrets@4.8.0
+#:package Microsoft.Azure.Services.AppAuthentication@1.6.2
+#:package Microsoft.Extensions.Configuration@10.0.1
+#:package Microsoft.Extensions.Configuration.Commandline@10.0.1
+#:package Microsoft.Extensions.Configuration.EnvironmentVariables@10.0.1
+#:package Microsoft.Extensions.Configuration.Json@10.0.1
+// #:package Microsoft.Extensions.Configuration.Xml@10.0.1
+#:package Microsoft.Extensions.Configuration.Ini@10.0.1
+#:package Microsoft.Extensions.DependencyInjection@10.0.1
+#:package Microsoft.Extensions.Hosting@10.0.1
+#:package Microsoft.Extensions.Options.ConfigurationExtensions@10.0.1
+#:package Microsoft.Extensions.Logging@10.0.1
+#:package Microsoft.Extensions.Logging.Abstractions@10.0.1
+#:package Microsoft.Extensions.Logging.Console@10.0.1
+#:package Microsoft.Extensions.Logging.Filter@1.1.2
+#:package NetEscapades.Configuration.Yaml@3.1.0
+#:package Microsoft.CodeAnalysis.CSharp@5.0.0
+
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System.Data;
-using System.IO;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Azure;
 using Azure.Identity;
-using Azure.Security.KeyVault.Certificates;
-using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Secrets;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-
+using Azure.Security.KeyVault.Certificates;
+using Azure.Security.KeyVault.Keys;
 namespace KeyVaultTool;
-
+class Program {
+    static string[] _args = null!;
+    public static async Task Main(string[] args) {
+        _args = args;
+        var host = Host.CreateDefaultBuilder(args)
+            .ConfigureAppConfiguration(ConfigureAppCongiuration)
+            .ConfigureServices(ConfigureServices)
+            .Build();
+        await host.RunAsync();
+    }
+    static void ConfigureAppCongiuration(HostBuilderContext context, IConfigurationBuilder cb) {
+        var switchMappings = new Dictionary<string, string>(){
+                { "-c", "config" },
+                { "-a", "address" },
+                { "-t", "tenantId" },
+                { "-u", "clientId" },
+                { "-p", "clientSecret" },
+                { "-m", "mode" },
+                { "-f", "filter" },
+                { "-o", "file" },
+                { "-v", "showVersions" },
+                { "--tenant-id", "tenantId" },
+                { "--client-id", "clientId" },
+                { "--content-type-filter", "contentTypeFileter" },
+                { "--client-secret", "clientSecret" },
+                { "--show-versions", "showVersions" },
+            };
+        cb.AddCommandLine(_args, switchMappings);
+        IConfiguration config = cb.Build();
+        var configPath = config["config"];
+        if (File.Exists(configPath)) {
+            var extName = Path.GetExtension(configPath);
+            extName = extName.ToLower();
+            switch (extName) {
+                case ".json":
+                    cb.AddJsonFile(configPath);
+                    break;
+                // case ".xml":
+                //     cb.AddXmlFile(configPath);
+                //     break;
+                case ".ini":
+                    cb.AddIniFile(configPath);
+                    break;
+                case ".yaml":
+                    cb.AddYamlFile(configPath);
+                    break;
+                case ".yml":
+                    cb.AddYamlFile(configPath);
+                    break;
+            }
+        }
+    }
+    static void ConfigureServices(HostBuilderContext context, IServiceCollection services) {
+        var config = context.Configuration;
+        services
+            .Configure<HostOptions>(option => option.ShutdownTimeout = System.TimeSpan.FromSeconds(20))
+            .Configure<ConsoleLifetimeOptions>(options => options.SuppressStatusMessages = true)
+            .Configure<KeyVaultOptions>(config)
+            .AddHostedService<KeyVaultService>();
+    }
+}
+public enum OperationMode {
+    Export,
+    Import,
+    Help
+};
+public class KeyVaultOptions {
+    public string Address { set; get; } = null!;
+    public string TenantId { set; get; } = null!;
+    public string ClientId { set; get; } = null!;
+    public string ClientSecret { set; get; } = null!;
+    public string Thumbprint { set; get; } = null!;
+    public IList<string> AdditionallyAllowedTenants { get; } = ["*"];
+    public OperationMode Mode { get; set; } = OperationMode.Export;
+    public string File { get; set; } = "CON";
+    public string Filter { get; set; } = ".*";
+    public string Delimiter { get; set; } = "\t";
+    public string Tags { get; set; } = ".*";
+    public bool ShowVersions { get; set; }
+    public bool Escape { get; set; }
+    public string ContentTypeFilter { get; set; } = null!;
+    public string[] scopes { get; set; } = ["secrets", "keys", "certificates"];
+    public StoreLocation StoreLocation { get; set; } = StoreLocation.CurrentUser;
+}
 public class KeyVaultService : BackgroundService {
     ILogger<KeyVaultService> _logger;
     KeyVaultOptions _options;
@@ -120,7 +245,7 @@ public class KeyVaultService : BackgroundService {
         }
     }
     async Task ExportSecrets(TextWriter writer, CancellationToken stoppingToken) {
-        var list = new List<SecretProperties>();
+        var list = new List<Azure.Security.KeyVault.Secrets.SecretProperties>();
         var secretClient = new SecretClient(new Uri(_options.Address), GetToken());
         var allSecrets = secretClient.GetPropertiesOfSecretsAsync(stoppingToken);
         await foreach (var secret in allSecrets) {
@@ -139,10 +264,11 @@ public class KeyVaultService : BackgroundService {
             var secretValue = secret.Value;
             if (_options.Escape)
                 secretValue = Escape(secretValue);
+
             var valueList = new List<string>(){
-                    secret.Name,
-                    secretValue
-                };
+                        secret.Name,
+                        secretValue
+                    };
             if (!string.IsNullOrWhiteSpace(secret.Properties.ContentType))
                 valueList.Add(secret.Properties.ContentType);
             // if (item.Tags != null)
@@ -218,6 +344,7 @@ public class KeyVaultService : BackgroundService {
                 }
             }
         }
+
         if (!string.IsNullOrEmpty(_options.TenantId)
             && !string.IsNullOrEmpty(_options.ClientId)
             && !string.IsNullOrEmpty(_options.ClientSecret
@@ -229,6 +356,7 @@ public class KeyVaultService : BackgroundService {
                     options.AdditionallyAllowedTenants.Add(tenant);
             return new ClientSecretCredential(_options.TenantId, _options.ClientId, _options.ClientSecret, options);
         }
+
         var defaultOptions = new DefaultAzureCredentialOptions() {
             AuthorityHost = GetAuthorityHost(_options.Address),
             ManagedIdentityClientId = _options.ClientId
@@ -268,7 +396,7 @@ public class KeyVaultService : BackgroundService {
         cb.AppendLine();
         cb.AppendLine("Options:");
         cb.AppendLine("  -a, --address        Azure Key Vault addresss.");
-        cb.AppendLine("  -c, --config         Config file (json|xml|ini|yaml|yml)");
+        cb.AppendLine("  -c, --config         Config file (json|ini|yaml|yml)");
         cb.AppendLine("  -f, --filter         Filter rules regular expression");
         cb.AppendLine("  -m, --mode           Import/Export. Default: Export");
         cb.AppendLine("  -o, --file           File path to be used for import or export");
@@ -288,3 +416,4 @@ public class KeyVaultService : BackgroundService {
         await Task.CompletedTask;
     }
 }
+
