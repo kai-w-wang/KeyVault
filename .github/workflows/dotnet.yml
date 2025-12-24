@@ -32,6 +32,7 @@ jobs:
 
   build-win:
     runs-on: windows-latest
+    needs: build-linux
     steps:
     - uses: actions/checkout@v4
     - name: Setup .NET SDK 10.x
@@ -51,9 +52,7 @@ jobs:
   release:
     # if: github.event_name != 'pull_request'
     runs-on: linux-latest
-    needs: 
-      - build-linux
-      - build-win
+    needs: build-win
     steps:
     - uses: actions/checkout@v4      
     - name: download artifact
