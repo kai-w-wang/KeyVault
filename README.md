@@ -92,7 +92,7 @@ dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.
 
     ```tsv
     sample-secret	sample value
-    sample-pem-certificate	-----BEGIN PRIVATE KEY-----\n...\n-----END CERTIFICATE-----\n	application/x-pem-file
+    sample-pem-certificate	-----BEGIN PRIVATE KEY-----\n...	application/x-pem-file
     sample-pfx-certificate	MIIV...	application/x-pkcs12
     ```
 
