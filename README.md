@@ -79,8 +79,8 @@ dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.
     Address: https://{name}.vault.azure.net/    # Key Vault address (Required).
     # TenantId: {TenantId}                      # Default or customized Entra Id tenant.
     # ClientId:                                 # Managed Identity Authentication.
-    # ClientSecret:                             # SPN Authentication with ClientId and ClientSecret.
-    # Thumbprint:                               # SPN Authentication with Certifivate by thrumbprint.
+    # ClientSecret:                             # SPN Secret Authentication.
+    # Thumbprint:                               # SPN Certifivate Authentication.
     Mode: Export                                # Import | Export | Help
     File: kv.tsv                                # Output file. Default to Console output (stdout).
     ShowVersions: false                         # List version history.
