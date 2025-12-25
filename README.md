@@ -71,7 +71,12 @@ dotnet publish KeyVault.cs ^
 1. Import from file into Key Vault:
 
     ```cmd
-    keyvault --Address "https://{name}.vault.azure.net/" --client-id {guid} --client-secret "****" --mode Import --file kv.txt
+    keyvault ^
+        --Address "https://{name}.vault.azure.net/" ^
+        --client-id {guid} ^
+        --client-secret "****"^
+        --mode Import ^
+        --file kv.txt
     ```
 
 1. Execute KeyVaultTool with configuration file:
