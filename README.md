@@ -2,9 +2,9 @@
 
 Azure Key Vault Tool to import/export secrets, keys and certificates.
 
-This repo requires .NET SDK version 10 or later.
-
 ## dotnet run KeyVault.cs
+
+KeyVault.cs requires .NET SDK version 10 or later.
 
 ```cmd
 dotnet run KeyVault.cs -- --help
@@ -76,16 +76,16 @@ dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.
     Sample config.yml
 
     ```yaml
-    Address: https://{name}.vault.azure.net/
-    TenantId: {TenantId}
-    # ClientId: 
-    # ClientSecret: 
-    # Thumbprint: 
-    Mode: Export
-    File: kv.tsv
-    ShowVersions: false
-    ContentTypeFilter: ".*"
-    Escape: true
+    Address: https://{name}.vault.azure.net/    # Key Vault address (Required).
+    # TenantId: {TenantId}                      # Default or customized Entra Id tenant.
+    # ClientId:                                 # Managed Identity Authentication.
+    # ClientSecret:                             # SPN Authentication with ClientId and ClientSecret.
+    # Thumbprint:                               # SPN Authentication with Certifivate by thrumbprint.
+    Mode: Export                                # Import | Export | Help
+    File: kv.tsv                                # Output file. Default to Console output (stdout).
+    ShowVersions: false                         # List version history.
+    ContentTypeFilter: ".*"                     # or: application/x-pem-file | application/x-pkcs12
+    Escape: true                                # Escape non-printable chars (\n, \r, \t).
     ```
 
     Sample kv.tsv
