@@ -13,7 +13,14 @@ dotnet run KeyVault.cs -- --help
 ## Build
 
 ```cmd
-dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.0.0 -p:PublishSingleFile=true -r win-x64 --self-contained false -o c:\tools
+dotnet publish KeyVault.cs ^
+    -c Release ^
+    -p:AssemblyVersion=1.0.0.0 ^
+    -p:Version=1.0.0.0 ^
+    -p:PublishSingleFile=true ^
+    -r win-x64 ^
+    --self-contained true^
+    -o c:\tools
 ```
 
 ## Samples
@@ -64,7 +71,12 @@ dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.
 1. Import from file into Key Vault:
 
     ```cmd
-    keyvault --Address "https://{name}.vault.azure.net/" --client-id {guid} --client-secret "****" --mode Import --file kv.txt
+    keyvault ^
+        --Address "https://{name}.vault.azure.net/" ^
+        --client-id {guid} ^
+        --client-secret "****"^
+        --mode Import ^
+        --file kv.txt
     ```
 
 1. Execute KeyVaultTool with configuration file:
@@ -79,8 +91,8 @@ dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.
     Address: https://{name}.vault.azure.net/    # Key Vault address (Required).
     # TenantId: {TenantId}                      # Default or customized Entra Id tenant.
     # ClientId:                                 # Managed Identity Authentication.
-    # ClientSecret:                             # SPN Authentication with ClientId and ClientSecret.
-    # Thumbprint:                               # SPN Authentication with Certifivate by thrumbprint.
+    # ClientSecret:                             # SPN Secret Authentication.
+    # Thumbprint:                               # SPN Certifivate Authentication.
     Mode: Export                                # Import | Export | Help
     File: kv.tsv                                # Output file. Default to Console output (stdout).
     ShowVersions: false                         # List version history.
@@ -92,7 +104,7 @@ dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.
 
     ```tsv
     sample-secret	sample value
-    sample-pem-certificate	-----BEGIN PRIVATE KEY-----\n...\n-----END CERTIFICATE-----\n	application/x-pem-file
+    sample-pem-certificate	-----BEGIN PRIVATE KEY-----\n...	application/x-pem-file
     sample-pfx-certificate	MIIV...	application/x-pkcs12
     ```
 
