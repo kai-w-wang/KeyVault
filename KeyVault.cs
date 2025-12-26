@@ -77,6 +77,13 @@ class Program {
         await host.RunAsync();
     }
     static void ConfigureAppCongiuration(HostBuilderContext context, IConfigurationBuilder cb) {
+        var defaults = new Dictionary<string, string?> {
+            ["Logging:Console:FormatterName"] = "Simple",
+            ["Logging:Console:FormatterOptions:SingleLine"] = bool.TrueString,
+            ["Logging:Console:FormatterOptions:IncludeScopes"] = bool.FalseString,
+            ["Logging:Console:FormatterOptions:TimestampFormat"] = "HH:mm:ss "
+        };
+        cb.AddInMemoryCollection(defaults);
         var switchMappings = new Dictionary<string, string>(){
                 { "-c", "config" },
                 { "-a", "address" },
@@ -153,7 +160,7 @@ public class KeyVaultOptions : KeyVaultConnectionOptions {
     public bool ShowVersions { get; set; }
     public bool Escape { get; set; }
     public string ContentTypeFilter { get; set; } = string.Empty;
-    public string[] Scopes { get; set; } = [];
+    public string Scopes { get; set; } = "secrets, keys, certificates";
     public KeyVaultConnectionOptions? From { get; set; }
     public KeyVaultConnectionOptions? To { get; set; }
 }
@@ -166,7 +173,7 @@ public class KeyVaultOptions : KeyVaultConnectionOptions {
 // internal partial class SourceGenerationContext : JsonSerializerContext { }
 
 public class KeyVaultService : BackgroundService {
-    ILogger<KeyVaultService> _logger;
+    ILogger _logger;
     KeyVaultOptions _options;
     private readonly IHostApplicationLifetime _appLifetime;
     public KeyVaultService(
@@ -212,9 +219,10 @@ public class KeyVaultService : BackgroundService {
     async Task Import(TextReader reader, CancellationToken stoppingToken) {
         var token = GetToken(_options.To ?? _options);
         var uri = new Uri(_options.To?.Address ?? _options.Address);
-        var secretClient = _options.Scopes.Contains("secrets") ? new SecretClient(uri, token) : null;
-        var keyClient = _options.Scopes.Contains("keys") ? new KeyClient(uri, token) : null;
-        var certificateClient = _options.Scopes.Contains("certificates") ? new CertificateClient(uri, token) : null;
+        var scopes = _options.Scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var secretClient = scopes.Contains("secrets") ? new SecretClient(uri, token) : null;
+        var keyClient = scopes.Contains("keys") ? new KeyClient(uri, token) : null;
+        var certificateClient = scopes.Contains("certificates") ? new CertificateClient(uri, token) : null;
         for (var line = await reader.ReadLineAsync(); line != null; line = await reader.ReadLineAsync()) {
             var items = line.Split('\t');
             if (items.Length < 2)
@@ -264,15 +272,16 @@ public class KeyVaultService : BackgroundService {
     async Task Export(TextWriter writer, CancellationToken stoppingToken) {
         var uri = new Uri(_options.From?.Address ?? _options.Address);
         var token = GetToken(_options.From ?? _options);
-        if (_options.Scopes.Contains("secrets")) {
+        var scopes = _options.Scopes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (scopes.Contains("secrets")) {
             _logger.LogDebug("Exporting secrets...");
             await ExportSecrets(uri, token, writer, stoppingToken);
         }
-        if (_options.Scopes.Contains("keys")) {
+        if (scopes.Contains("keys")) {
             _logger.LogDebug("Exporting keys...");
             await ExportKeys(uri, token, writer, stoppingToken);
         }
-        // if (_options.Scopes.Contains("certificates"))
+        // if (scopes.Contains("certificates"))
         //     await ExportCertificates(writer, stoppingToken);
     }
     async Task ExportSecrets(Uri uri, TokenCredential token, TextWriter writer, CancellationToken stoppingToken) {
@@ -350,8 +359,8 @@ public class KeyVaultService : BackgroundService {
     //     await Task.CompletedTask;
     // }
     async Task Copy(CancellationToken stoppingToken) {
-        _logger.LogInformation("Copy {0} from {1} to {2}",
-            string.Join(",", _options.Scopes),
+        _logger.LogInformation("Copy '{0}' from {1} to {2}",
+            _options.Scopes,
             _options.From?.Address ?? _options.Address,
             _options.To?.Address ?? _options.Address
             );
