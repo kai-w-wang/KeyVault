@@ -45,6 +45,8 @@ SOFTWARE.
 #:package NetEscapades.Configuration.Yaml@3.1.0
 #:package Microsoft.CodeAnalysis.CSharp@5.0.0
 
+#:property EnableConfigurationBindingGenerator=true
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -59,6 +61,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Keys;
+using System.Text.Json.Serialization;
 
 namespace KeyVaultTool;
 
@@ -66,7 +69,7 @@ class Program {
     static string[] _args = null!;
     public static async Task Main(string[] args) {
         _args = args;
-        var host = Host.CreateDefaultBuilder(args)
+        IHost host = Host.CreateDefaultBuilder(args)
             .ConfigureAppConfiguration(ConfigureAppCongiuration)
             .ConfigureServices(ConfigureServices)
             .Build();
@@ -115,7 +118,7 @@ class Program {
         }
     }
     static void ConfigureServices(HostBuilderContext context, IServiceCollection services) {
-        var config = context.Configuration;
+        IConfiguration config = context.Configuration;
         services
             .Configure<HostOptions>(option => option.ShutdownTimeout = System.TimeSpan.FromSeconds(20))
             .Configure<ConsoleLifetimeOptions>(options => options.SuppressStatusMessages = true)
@@ -123,19 +126,24 @@ class Program {
             .AddHostedService<KeyVaultService>();
     }
 }
+[JsonConverter(typeof(JsonStringEnumConverter<OperationMode>))]
 public enum OperationMode {
+    Help,
     Export,
     Import,
-    Help,
     Copy
 };
-public class KeyVaultOptions {
+public class KeyVaultConnectionOptions {
     public string Address { set; get; } = null!;
     public string TenantId { set; get; } = null!;
     public string ClientId { set; get; } = null!;
     public string ClientSecret { set; get; } = null!;
+    public StoreLocation StoreLocation { get; set; } = StoreLocation.CurrentUser;
     public string Thumbprint { set; get; } = null!;
     public IList<string> AdditionallyAllowedTenants { get; } = ["*"];
+}
+public class KeyVaultOptions : KeyVaultConnectionOptions {
+
     public OperationMode Mode { get; set; } = OperationMode.Export;
     public string File { get; set; } = "CON";
     public string Filter { get; set; } = ".*";
@@ -143,10 +151,19 @@ public class KeyVaultOptions {
     public string Tags { get; set; } = ".*";
     public bool ShowVersions { get; set; }
     public bool Escape { get; set; }
-    public string ContentTypeFilter { get; set; } = null!;
-    public string[] scopes { get; set; } = ["secrets", "keys", "certificates"];
-    public StoreLocation StoreLocation { get; set; } = StoreLocation.CurrentUser;
+    public string ContentTypeFilter { get; set; } = string.Empty;
+    public string[] Scopes { get; set; } = ["secrets", "keys", "certificates"];
+    public KeyVaultConnectionOptions? From { get; set; }
+    public KeyVaultConnectionOptions? To { get; set; }
 }
+// [JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+// [JsonSerializable(typeof(KeyVaultConnectionOptions))]
+// [JsonSerializable(typeof(KeyVaultOptions))]
+// [JsonSerializable(typeof(OperationMode))]
+// [JsonSerializable(typeof(bool))]
+// [JsonSerializable(typeof(int))]
+// internal partial class SourceGenerationContext : JsonSerializerContext { }
+
 public class KeyVaultService : BackgroundService {
     ILogger<KeyVaultService> _logger;
     KeyVaultOptions _options;
@@ -159,7 +176,7 @@ public class KeyVaultService : BackgroundService {
         _logger = logger;
         _options = options.Value;
         _appLifetime = appLifetime;
-        if (string.IsNullOrWhiteSpace(_options.Address))
+        if (string.IsNullOrWhiteSpace(_options.Address) && _options.From == null && _options.To == null)
             _options.Mode = OperationMode.Help;
         if (_options.Address != null && !_options.Address.Contains('.'))
             _options.Address = $"https://{_options.Address}.vault.azure.net/";
@@ -167,14 +184,17 @@ public class KeyVaultService : BackgroundService {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
         try {
             switch (_options.Mode) {
+                case OperationMode.Help:
+                    await Help();
+                    break;
                 case OperationMode.Export:
                     await Export(stoppingToken);
                     break;
                 case OperationMode.Import:
                     await Import(stoppingToken);
                     break;
-                case OperationMode.Help:
-                    await Help();
+                case OperationMode.Copy:
+                    await Copy(stoppingToken);
                     break;
             }
         }
@@ -189,7 +209,7 @@ public class KeyVaultService : BackgroundService {
         }
     }
     async Task Import(TextReader reader, CancellationToken stoppingToken) {
-        var kv = new SecretClient(new Uri(_options.Address), GetToken());
+        var kv = new SecretClient(new Uri(_options.To?.Address ?? _options.Address), GetToken(_options.To ?? _options));
         for (var line = await reader.ReadLineAsync(); line != null; line = await reader.ReadLineAsync()) {
             var items = line.Split('\t');
             if (items.Length < 2)
@@ -226,68 +246,64 @@ public class KeyVaultService : BackgroundService {
         }
     }
     async Task ImportPfxCertificateAsync(string name, string base64Value, CancellationToken stoppingToken = default) {
-        var client = new CertificateClient(new Uri(_options.Address), GetToken());
-        ImportCertificateOptions importOptions = new ImportCertificateOptions(name, Convert.FromBase64String(base64Value));
+        CertificateClient client = new(new Uri(_options.To?.Address ?? _options.Address), GetToken(_options.To ?? _options));
+        ImportCertificateOptions importOptions = new(name, Convert.FromBase64String(base64Value));
         await client.ImportCertificateAsync(importOptions, stoppingToken);
     }
     async Task ImportPemCertificateAsync(string name, string value, CancellationToken stoppingToken = default) {
-        var client = new CertificateClient(new Uri(_options.Address), GetToken());
-        ImportCertificateOptions importOptions = new ImportCertificateOptions(name, Encoding.UTF8.GetBytes(value));
+        CertificateClient client = new(new Uri(_options.To?.Address ?? _options.Address), GetToken(_options.To ?? _options));
+        ImportCertificateOptions importOptions = new(name, Encoding.UTF8.GetBytes(value));
         await client.ImportCertificateAsync(importOptions, stoppingToken);
     }
     async Task ImportKeyBackupAsync(string name, string value, CancellationToken stoppingToken = default) {
-        KeyClient client = new KeyClient(new Uri(_options.Address), GetToken());
+        KeyClient client = new(new Uri(_options.To?.Address ?? _options.Address), GetToken(_options.To ?? _options));
         await client.RestoreKeyBackupAsync(Convert.FromBase64String(value), stoppingToken);
     }
     async Task Export(CancellationToken stoppingToken) {
         bool toConsole = string.Compare(_options.File, "CON", true) == 0;
-        using (TextWriter writer = toConsole ? Console.Out : File.CreateText(_options.File)) {
-            await Export(writer, stoppingToken);
-        }
+        using TextWriter writer = toConsole ? Console.Out : File.CreateText(_options.File);
+        await Export(writer, stoppingToken);
     }
     async Task Export(TextWriter writer, CancellationToken stoppingToken) {
-        if (_options.scopes.Contains("secrets"))
+        if (_options.Scopes.Contains("secrets"))
             await ExportSecrets(writer, stoppingToken);
-        if (_options.scopes.Contains("keys"))
+        if (_options.Scopes.Contains("keys"))
             await ExportKeys(writer, stoppingToken);
-        if (_options.scopes.Contains("certificates"))
+        if (_options.Scopes.Contains("certificates"))
             await ExportCertificates(writer, stoppingToken);
     }
     async Task ExportSecrets(TextWriter writer, CancellationToken stoppingToken) {
-        var list = new List<SecretProperties>();
-        var secretClient = new SecretClient(new Uri(_options.Address), GetToken());
-        var allSecrets = secretClient.GetPropertiesOfSecretsAsync(stoppingToken);
-        await foreach (var secret in allSecrets) {
+        List<SecretProperties> list = [];
+        SecretClient secretClient = new(new Uri(_options.From?.Address ?? _options.Address), GetToken(_options.From ?? _options));
+        AsyncPageable<SecretProperties> allSecrets = secretClient.GetPropertiesOfSecretsAsync(stoppingToken);
+        await foreach (SecretProperties secret in allSecrets) {
             // Getting a disabled secret will fail, so skip disabled secrets.
             if (!secret.Enabled.GetValueOrDefault())
                 continue;
             list.Add(secret);
         }
-        var emptyContentTypeFilter = string.IsNullOrEmpty(_options.ContentTypeFilter);
-        var result = emptyContentTypeFilter ?
+        bool emptyContentTypeFilter = string.IsNullOrEmpty(_options.ContentTypeFilter);
+        IEnumerable<SecretProperties> result = emptyContentTypeFilter ?
             list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && string.IsNullOrEmpty(l.ContentType))
             : list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && Regex.IsMatch(l.ContentType ?? string.Empty, _options.ContentTypeFilter));
-        foreach (var item in result) {
+        foreach (SecretProperties item in result) {
             KeyVaultSecret secret = await secretClient.GetSecretAsync(item.Name);
             //var secret = await kv.GetSecretAsync(item.Id, stoppingToken);
-            var secretValue = secret.Value;
+            string secretValue = secret.Value;
             if (_options.Escape)
                 secretValue = Escape(secretValue);
 
-            var valueList = new List<string>(){
-                        secret.Name,
-                        secretValue
-                    };
+            List<string> valueList = [secret.Name, secretValue];
             if (!string.IsNullOrWhiteSpace(secret.Properties.ContentType))
                 valueList.Add(secret.Properties.ContentType);
             // if (item.Tags != null)
             //     valueList.AddRange(item.Tags.Values);
-            var line = string.Join(_options.Delimiter, valueList);
+            string line = string.Join(_options.Delimiter, valueList);
             writer.WriteLine(line);
             if (!_options.ShowVersions)
                 continue;
-            var versions = new List<KeyVaultSecret>();
-            await foreach (var v in secretClient.GetPropertiesOfSecretVersionsAsync(secret.Name)) {
+            List<KeyVaultSecret> versions = [];
+            await foreach (SecretProperties v in secretClient.GetPropertiesOfSecretVersionsAsync(secret.Name)) {
                 // Secret versions may also be disabled if compromised and new versions generated, so skip disabled versions, too.
                 if (!v.Enabled.GetValueOrDefault()) {
                     continue;
@@ -295,7 +311,7 @@ public class KeyVaultService : BackgroundService {
                 KeyVaultSecret versionValue = await secretClient.GetSecretAsync(v.Name, v.Version);
                 versions.Add(versionValue);
             }
-            foreach (var v in versions.OrderBy(v => v.Properties.UpdatedOn)) {
+            foreach (KeyVaultSecret? v in versions.OrderBy(v => v.Properties.UpdatedOn)) {
                 var id = v.Id.ToString();
                 var versionName = id.Substring(id.LastIndexOf('/') + 1);
                 secretValue = v.Value;
@@ -306,7 +322,7 @@ public class KeyVaultService : BackgroundService {
         }
     }
     async Task ExportKeys(TextWriter writer, CancellationToken stoppingToken) {
-        KeyClient client = new KeyClient(new Uri(_options.Address), GetToken());
+        KeyClient client = new(new Uri(_options.From?.Address ?? _options.Address), GetToken(_options.From ?? _options));
         AsyncPageable<KeyProperties> allKeys = client.GetPropertiesOfKeysAsync();
         var keyDictionary = new Dictionary<string, byte[]>();
         await foreach (KeyProperties key in allKeys) {
@@ -315,14 +331,14 @@ public class KeyVaultService : BackgroundService {
             Response<byte[]> backupBytes = await client.BackupKeyAsync(key.Name);
             keyDictionary[key.Name] = backupBytes.Value;
         }
-        foreach (var entry in keyDictionary) {
+        foreach (KeyValuePair<string, byte[]> entry in keyDictionary) {
             string[] valueList = [entry.Key, Convert.ToBase64String(entry.Value), "application/x-key-backup"];
-            var line = string.Join(_options.Delimiter, valueList);
+            string line = string.Join(_options.Delimiter, valueList);
             writer.WriteLine(line);
         }
     }
     async Task ExportCertificates(TextWriter writer, CancellationToken stoppingToken) {
-        // var client = new CertificateClient(new Uri(_options.Address), GetToken());
+        // var client = new CertificateClient(new Uri(_options.DestinationAddress ?? _options.Address), GetToken(_options.SourceAddress ?? _options.Address));
         // AsyncPageable<CertificateProperties> allCertificates = client.GetPropertiesOfCertificatesAsync();
         // await foreach (CertificateProperties certificateProperties in allCertificates) {
         //     // Console.WriteLine(certificateProperties.Name);
@@ -330,22 +346,35 @@ public class KeyVaultService : BackgroundService {
         // }
         await Task.CompletedTask;
     }
+    async Task Copy(CancellationToken stoppingToken) {
+        _logger.LogInformation("{0} ==> {1}", _options.From?.Address ?? _options.Address, _options.To?.Address ?? _options.Address);
+        using (var stream = new MemoryStream()) {
+            using (StreamWriter writer = new(stream, Encoding.UTF8, 4096, true)) {
+                await Export(writer, stoppingToken);
+            }
+            stream.Position = 0;
+            using (StreamReader reader = new(stream, Encoding.UTF8, false, 4096, true)) {
+                await Import(reader, stoppingToken);
+            }
+        }
+    }
     private Azure.Core.TokenCredential GetToken() {
-        if (!string.IsNullOrEmpty(_options.TenantId)
-            && !string.IsNullOrEmpty(_options.ClientId)
-            && !string.IsNullOrEmpty(_options.Thumbprint)) {
-            var thumbprint = _options.Thumbprint.Trim();
-            using var store = new X509Store(StoreName.My, _options.StoreLocation);
+        return GetToken(_options);
+    }
+    private Azure.Core.TokenCredential GetToken(KeyVaultConnectionOptions options) {
+        if (!string.IsNullOrEmpty(options.TenantId)
+            && !string.IsNullOrEmpty(options.ClientId)
+            && !string.IsNullOrEmpty(options.Thumbprint)) {
+            string thumbprint = options.Thumbprint.Trim();
+            using X509Store store = new(StoreName.My, options.StoreLocation);
             store.Open(OpenFlags.ReadOnly);
             // Find the certificate that matches the thumbprint.
-            var certCollection = store.Certificates.Find(
+            X509Certificate2Collection certCollection = store.Certificates.Find(
                 X509FindType.FindByThumbprint, thumbprint, false);
             if (certCollection != null) {
-                var certificate = certCollection.FirstOrDefault();
+                X509Certificate2? certificate = certCollection.FirstOrDefault();
                 if (certificate != null) {
-                    ClientCertificateCredentialOptions certOptions = new ClientCertificateCredentialOptions {
-                        AuthorityHost = GetAuthorityHost(_options.Address)
-                    };
+                    ClientCertificateCredentialOptions certOptions = new() { AuthorityHost = GetAuthorityHost(options.Address) };
                     foreach (var tenant in _options.AdditionallyAllowedTenants)
                         if (!certOptions.AdditionallyAllowedTenants.Contains(tenant))
                             certOptions.AdditionallyAllowedTenants.Add(tenant);
@@ -354,31 +383,29 @@ public class KeyVaultService : BackgroundService {
             }
         }
 
-        if (!string.IsNullOrEmpty(_options.TenantId)
-            && !string.IsNullOrEmpty(_options.ClientId)
-            && !string.IsNullOrEmpty(_options.ClientSecret
-            )) {
-            ClientSecretCredentialOptions options = new ClientSecretCredentialOptions();
-            options.AuthorityHost = GetAuthorityHost(_options.Address);
-            foreach (var tenant in _options.AdditionallyAllowedTenants)
+        if (!string.IsNullOrEmpty(_options.TenantId) && !string.IsNullOrEmpty(_options.ClientId) && !string.IsNullOrEmpty(_options.ClientSecret)) {
+            ClientSecretCredentialOptions o = new() {
+                AuthorityHost = GetAuthorityHost(options.Address)
+            };
+            foreach (string tenant in _options.AdditionallyAllowedTenants)
                 if (!options.AdditionallyAllowedTenants.Contains(tenant))
-                    options.AdditionallyAllowedTenants.Add(tenant);
-            return new ClientSecretCredential(_options.TenantId, _options.ClientId, _options.ClientSecret, options);
+                    o.AdditionallyAllowedTenants.Add(tenant);
+            return new ClientSecretCredential(_options.TenantId, _options.ClientId, _options.ClientSecret, o);
         }
 
         var defaultOptions = new DefaultAzureCredentialOptions() {
-            AuthorityHost = GetAuthorityHost(_options.Address),
+            AuthorityHost = GetAuthorityHost(options.Address),
             ManagedIdentityClientId = _options.ClientId
         };
-        foreach (var tenant in _options.AdditionallyAllowedTenants)
+        foreach (string tenant in _options.AdditionallyAllowedTenants)
             if (!defaultOptions.AdditionallyAllowedTenants.Contains(tenant))
                 defaultOptions.AdditionallyAllowedTenants.Add(tenant);
         return new DefaultAzureCredential(defaultOptions);
     }
     private static Uri GetAuthorityHost(string uri) => GetAuthorityHost(new Uri(uri));
     private static Uri GetAuthorityHost(Uri kvAddress) {
-        var host = kvAddress.Host;
-        var suffix = host.Substring(host.IndexOf('.') + 1);
+        string host = kvAddress.Host;
+        string suffix = host.Substring(host.IndexOf('.') + 1);
         return suffix switch {
             "vault.azure.cn" => AzureAuthorityHosts.AzureChina,
             "vault.azure.net" => AzureAuthorityHosts.AzurePublicCloud,
@@ -400,7 +427,7 @@ public class KeyVaultService : BackgroundService {
         return Regex.Unescape(str);
     }
     async Task Help() {
-        StringBuilder cb = new StringBuilder(4096);
+        StringBuilder cb = new(4096);
         cb.AppendLine($"Version: {typeof(Program).Assembly.GetName().Version}, Author: Kai Wang");
         cb.AppendLine();
         cb.AppendLine("Options:");
