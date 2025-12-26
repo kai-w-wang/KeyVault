@@ -62,6 +62,7 @@ using Microsoft.Extensions.Options;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Keys;
 using System.Text.Json.Serialization;
+using Azure.Core;
 
 namespace KeyVaultTool;
 
@@ -152,7 +153,7 @@ public class KeyVaultOptions : KeyVaultConnectionOptions {
     public bool ShowVersions { get; set; }
     public bool Escape { get; set; }
     public string ContentTypeFilter { get; set; } = string.Empty;
-    public string[] Scopes { get; set; } = ["secrets", "keys", "certificates"];
+    public string[] Scopes { get; set; } = [];
     public KeyVaultConnectionOptions? From { get; set; }
     public KeyVaultConnectionOptions? To { get; set; }
 }
@@ -209,7 +210,11 @@ public class KeyVaultService : BackgroundService {
         }
     }
     async Task Import(TextReader reader, CancellationToken stoppingToken) {
-        var kv = new SecretClient(new Uri(_options.To?.Address ?? _options.Address), GetToken(_options.To ?? _options));
+        var token = GetToken(_options.To ?? _options);
+        var uri = new Uri(_options.To?.Address ?? _options.Address);
+        var secretClient = _options.Scopes.Contains("secrets") ? new SecretClient(uri, token) : null;
+        var keyClient = _options.Scopes.Contains("keys") ? new KeyClient(uri, token) : null;
+        var certificateClient = _options.Scopes.Contains("certificates") ? new CertificateClient(uri, token) : null;
         for (var line = await reader.ReadLineAsync(); line != null; line = await reader.ReadLineAsync()) {
             var items = line.Split('\t');
             if (items.Length < 2)
@@ -218,26 +223,32 @@ public class KeyVaultService : BackgroundService {
             var value = items[1];
             if (_options.Escape)
                 value = Unescape(value);
-            Console.WriteLine(name);
+            _logger.LogInformation("Import: {0}", name);
             try {
                 var contentType = items.Length > 2 ? items[2] : null;
-                if (contentType == null)
-                    await kv.SetSecretAsync(new KeyVaultSecret(name, value), stoppingToken);
-                else
+                if (contentType == null) {
+                    if (secretClient != null)
+                        await secretClient.SetSecretAsync(new KeyVaultSecret(name, value), stoppingToken);
+                } else {
                     switch (contentType.ToLower()) {
                         case "application/x-pkcs12":
-                            await ImportPfxCertificateAsync(name, value, stoppingToken);
+                            if (certificateClient != null)
+                                await certificateClient.ImportCertificateAsync(new ImportCertificateOptions(name, Convert.FromBase64String(value)), stoppingToken);
                             break;
                         case "application/x-pem-file":
-                            await ImportPemCertificateAsync(name, value, stoppingToken);
+                            if (certificateClient != null)
+                                await certificateClient.ImportCertificateAsync(new ImportCertificateOptions(name, Encoding.UTF8.GetBytes(value)), stoppingToken);
                             break;
                         case "application/x-key-backup":
-                            await ImportKeyBackupAsync(name, value, stoppingToken);
+                            if (keyClient != null)
+                                await keyClient.RestoreKeyBackupAsync(Convert.FromBase64String(value), stoppingToken);
                             break;
                         default:
-                            await kv.SetSecretAsync(new KeyVaultSecret(name, value) { Properties = { ContentType = contentType } }, stoppingToken);
+                            if (secretClient != null)
+                                await secretClient.SetSecretAsync(new KeyVaultSecret(name, value) { Properties = { ContentType = contentType } }, stoppingToken);
                             break;
                     }
+                }
             }
             catch (Exception ex) {
                 _logger.LogError(ex, "ExecuteAsync");
@@ -245,36 +256,28 @@ public class KeyVaultService : BackgroundService {
             }
         }
     }
-    async Task ImportPfxCertificateAsync(string name, string base64Value, CancellationToken stoppingToken = default) {
-        CertificateClient client = new(new Uri(_options.To?.Address ?? _options.Address), GetToken(_options.To ?? _options));
-        ImportCertificateOptions importOptions = new(name, Convert.FromBase64String(base64Value));
-        await client.ImportCertificateAsync(importOptions, stoppingToken);
-    }
-    async Task ImportPemCertificateAsync(string name, string value, CancellationToken stoppingToken = default) {
-        CertificateClient client = new(new Uri(_options.To?.Address ?? _options.Address), GetToken(_options.To ?? _options));
-        ImportCertificateOptions importOptions = new(name, Encoding.UTF8.GetBytes(value));
-        await client.ImportCertificateAsync(importOptions, stoppingToken);
-    }
-    async Task ImportKeyBackupAsync(string name, string value, CancellationToken stoppingToken = default) {
-        KeyClient client = new(new Uri(_options.To?.Address ?? _options.Address), GetToken(_options.To ?? _options));
-        await client.RestoreKeyBackupAsync(Convert.FromBase64String(value), stoppingToken);
-    }
     async Task Export(CancellationToken stoppingToken) {
         bool toConsole = string.Compare(_options.File, "CON", true) == 0;
         using TextWriter writer = toConsole ? Console.Out : File.CreateText(_options.File);
         await Export(writer, stoppingToken);
     }
     async Task Export(TextWriter writer, CancellationToken stoppingToken) {
-        if (_options.Scopes.Contains("secrets"))
-            await ExportSecrets(writer, stoppingToken);
-        if (_options.Scopes.Contains("keys"))
-            await ExportKeys(writer, stoppingToken);
-        if (_options.Scopes.Contains("certificates"))
-            await ExportCertificates(writer, stoppingToken);
+        var uri = new Uri(_options.From?.Address ?? _options.Address);
+        var token = GetToken(_options.From ?? _options);
+        if (_options.Scopes.Contains("secrets")) {
+            _logger.LogDebug("Exporting secrets...");
+            await ExportSecrets(uri, token, writer, stoppingToken);
+        }
+        if (_options.Scopes.Contains("keys")) {
+            _logger.LogDebug("Exporting keys...");
+            await ExportKeys(uri, token, writer, stoppingToken);
+        }
+        // if (_options.Scopes.Contains("certificates"))
+        //     await ExportCertificates(writer, stoppingToken);
     }
-    async Task ExportSecrets(TextWriter writer, CancellationToken stoppingToken) {
+    async Task ExportSecrets(Uri uri, TokenCredential token, TextWriter writer, CancellationToken stoppingToken) {
         List<SecretProperties> list = [];
-        SecretClient secretClient = new(new Uri(_options.From?.Address ?? _options.Address), GetToken(_options.From ?? _options));
+        var secretClient = new SecretClient(uri, token);
         AsyncPageable<SecretProperties> allSecrets = secretClient.GetPropertiesOfSecretsAsync(stoppingToken);
         await foreach (SecretProperties secret in allSecrets) {
             // Getting a disabled secret will fail, so skip disabled secrets.
@@ -321,8 +324,8 @@ public class KeyVaultService : BackgroundService {
             }
         }
     }
-    async Task ExportKeys(TextWriter writer, CancellationToken stoppingToken) {
-        KeyClient client = new(new Uri(_options.From?.Address ?? _options.Address), GetToken(_options.From ?? _options));
+    async Task ExportKeys(Uri uri, TokenCredential token, TextWriter writer, CancellationToken stoppingToken) {
+        var client = new KeyClient(uri, token);
         AsyncPageable<KeyProperties> allKeys = client.GetPropertiesOfKeysAsync();
         var keyDictionary = new Dictionary<string, byte[]>();
         await foreach (KeyProperties key in allKeys) {
@@ -337,17 +340,21 @@ public class KeyVaultService : BackgroundService {
             writer.WriteLine(line);
         }
     }
-    async Task ExportCertificates(TextWriter writer, CancellationToken stoppingToken) {
-        // var client = new CertificateClient(new Uri(_options.DestinationAddress ?? _options.Address), GetToken(_options.SourceAddress ?? _options.Address));
-        // AsyncPageable<CertificateProperties> allCertificates = client.GetPropertiesOfCertificatesAsync();
-        // await foreach (CertificateProperties certificateProperties in allCertificates) {
-        //     // Console.WriteLine(certificateProperties.Name);
-        //     var cert = await client.GetCertificateAsync(certificateProperties.Name, cancellationToken: stoppingToken);
-        // }
-        await Task.CompletedTask;
-    }
+    // async Task ExportCertificates(TextWriter writer, CancellationToken stoppingToken) {
+    //     // var client = new CertificateClient(new Uri(_options.DestinationAddress ?? _options.Address), GetToken(_options.SourceAddress ?? _options.Address));
+    //     // AsyncPageable<CertificateProperties> allCertificates = client.GetPropertiesOfCertificatesAsync();
+    //     // await foreach (CertificateProperties certificateProperties in allCertificates) {
+    //     //     // Console.WriteLine(certificateProperties.Name);
+    //     //     var cert = await client.GetCertificateAsync(certificateProperties.Name, cancellationToken: stoppingToken);
+    //     // }
+    //     await Task.CompletedTask;
+    // }
     async Task Copy(CancellationToken stoppingToken) {
-        _logger.LogInformation("{0} ==> {1}", _options.From?.Address ?? _options.Address, _options.To?.Address ?? _options.Address);
+        _logger.LogInformation("Copy {0} from {1} to {2}",
+            string.Join(",", _options.Scopes),
+            _options.From?.Address ?? _options.Address,
+            _options.To?.Address ?? _options.Address
+            );
         using (var stream = new MemoryStream()) {
             using (StreamWriter writer = new(stream, Encoding.UTF8, 4096, true)) {
                 await Export(writer, stoppingToken);
@@ -358,10 +365,7 @@ public class KeyVaultService : BackgroundService {
             }
         }
     }
-    private Azure.Core.TokenCredential GetToken() {
-        return GetToken(_options);
-    }
-    private Azure.Core.TokenCredential GetToken(KeyVaultConnectionOptions options) {
+    private TokenCredential GetToken(KeyVaultConnectionOptions options) {
         if (!string.IsNullOrEmpty(options.TenantId)
             && !string.IsNullOrEmpty(options.ClientId)
             && !string.IsNullOrEmpty(options.Thumbprint)) {
