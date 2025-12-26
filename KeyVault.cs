@@ -59,7 +59,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Keys;
+
 namespace KeyVaultTool;
+
 class Program {
     static string[] _args = null!;
     public static async Task Main(string[] args) {
@@ -124,7 +126,8 @@ class Program {
 public enum OperationMode {
     Export,
     Import,
-    Help
+    Help,
+    Copy
 };
 public class KeyVaultOptions {
     public string Address { set; get; } = null!;
@@ -181,41 +184,44 @@ public class KeyVaultService : BackgroundService {
         _appLifetime.StopApplication();
     }
     async Task Import(CancellationToken stoppingToken) {
-        var kv = new SecretClient(new Uri(_options.Address), GetToken());
         using (TextReader reader = string.Compare(_options.File, "CON", true) == 0 ? Console.In : File.OpenText(_options.File)) {
-            for (var line = await reader.ReadLineAsync(); line != null; line = await reader.ReadLineAsync()) {
-                var items = line.Split('\t');
-                if (items.Length < 2)
-                    continue;
-                var name = items[0];
-                var value = items[1];
-                if (_options.Escape)
-                    value = Unescape(value);
-                Console.WriteLine(name);
-                try {
-                    var contentType = items.Length > 2 ? items[2] : null;
-                    if (contentType == null)
-                        await kv.SetSecretAsync(new KeyVaultSecret(name, value), stoppingToken);
-                    else
-                        switch (contentType.ToLower()) {
-                            case "application/x-pkcs12":
-                                await ImportPfxCertificateAsync(name, value, stoppingToken);
-                                break;
-                            case "application/x-pem-file":
-                                await ImportPemCertificateAsync(name, value, stoppingToken);
-                                break;
-                            case "application/x-key-backup":
-                                await ImportKeyBackupAsync(name, value, stoppingToken);
-                                break;
-                            default:
-                                await kv.SetSecretAsync(new KeyVaultSecret(name, value) { Properties = { ContentType = contentType } }, stoppingToken);
-                                break;
-                        }
-                }
-                catch (Exception ex) {
-                    _logger.LogError(ex, "ExecuteAsync");
-                    //Console.Error.WriteLine(ex.ToString());
-                }
+            await Import(reader, stoppingToken);
+        }
+    }
+    async Task Import(TextReader reader, CancellationToken stoppingToken) {
+        var kv = new SecretClient(new Uri(_options.Address), GetToken());
+        for (var line = await reader.ReadLineAsync(); line != null; line = await reader.ReadLineAsync()) {
+            var items = line.Split('\t');
+            if (items.Length < 2)
+                continue;
+            var name = items[0];
+            var value = items[1];
+            if (_options.Escape)
+                value = Unescape(value);
+            Console.WriteLine(name);
+            try {
+                var contentType = items.Length > 2 ? items[2] : null;
+                if (contentType == null)
+                    await kv.SetSecretAsync(new KeyVaultSecret(name, value), stoppingToken);
+                else
+                    switch (contentType.ToLower()) {
+                        case "application/x-pkcs12":
+                            await ImportPfxCertificateAsync(name, value, stoppingToken);
+                            break;
+                        case "application/x-pem-file":
+                            await ImportPemCertificateAsync(name, value, stoppingToken);
+                            break;
+                        case "application/x-key-backup":
+                            await ImportKeyBackupAsync(name, value, stoppingToken);
+                            break;
+                        default:
+                            await kv.SetSecretAsync(new KeyVaultSecret(name, value) { Properties = { ContentType = contentType } }, stoppingToken);
+                            break;
+                    }
+            }
+            catch (Exception ex) {
+                _logger.LogError(ex, "ExecuteAsync");
+                //Console.Error.WriteLine(ex.ToString());
             }
         }
     }
@@ -236,16 +242,19 @@ public class KeyVaultService : BackgroundService {
     async Task Export(CancellationToken stoppingToken) {
         bool toConsole = string.Compare(_options.File, "CON", true) == 0;
         using (TextWriter writer = toConsole ? Console.Out : File.CreateText(_options.File)) {
-            if (_options.scopes.Contains("secrets"))
-                await ExportSecrets(writer, stoppingToken);
-            if (_options.scopes.Contains("keys"))
-                await ExportKeys(writer, stoppingToken);
-            if (_options.scopes.Contains("certificates"))
-                await ExportCertificates(writer, stoppingToken);
+            await Export(writer, stoppingToken);
         }
     }
+    async Task Export(TextWriter writer, CancellationToken stoppingToken) {
+        if (_options.scopes.Contains("secrets"))
+            await ExportSecrets(writer, stoppingToken);
+        if (_options.scopes.Contains("keys"))
+            await ExportKeys(writer, stoppingToken);
+        if (_options.scopes.Contains("certificates"))
+            await ExportCertificates(writer, stoppingToken);
+    }
     async Task ExportSecrets(TextWriter writer, CancellationToken stoppingToken) {
-        var list = new List<Azure.Security.KeyVault.Secrets.SecretProperties>();
+        var list = new List<SecretProperties>();
         var secretClient = new SecretClient(new Uri(_options.Address), GetToken());
         var allSecrets = secretClient.GetPropertiesOfSecretsAsync(stoppingToken);
         await foreach (var secret in allSecrets) {
