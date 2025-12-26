@@ -2,9 +2,9 @@
 
 Azure Key Vault Tool to import/export secrets, keys and certificates.
 
-This repo requires .NET SDK version 10 or later.
-
 ## dotnet run KeyVault.cs
+
+KeyVault.cs requires .NET SDK version 10 or later.
 
 ```cmd
 dotnet run KeyVault.cs -- --help
@@ -76,16 +76,16 @@ dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.
     Sample config.yml
 
     ```yaml
-    Address: https://{name}.vault.azure.net/
-    TenantId: {TenantId}
-    # ClientId: 
-    # ClientSecret: 
-    # Thumbprint: 
-    Mode: Export
-    File: kv.tsv
-    ShowVersions: false
-    ContentTypeFilter: ".*"
-    Escape: true
+    Address: https://{name}.vault.azure.net/    # Key Vault address (Required).
+    # TenantId: {TenantId}                      # Default or customized Entra Id tenant.
+    # ClientId:                                 # Managed Identity Authentication.
+    # ClientSecret:                             # SPN Authentication with ClientId and ClientSecret.
+    # Thumbprint:                               # SPN Authentication with Certifivate by thrumbprint.
+    Mode: Export                                # Import | Export | Help
+    File: kv.tsv                                # Output file. Default to Console output (stdout).
+    ShowVersions: false                         # List version history.
+    ContentTypeFilter: ".*"                     # or: application/x-pem-file | application/x-pkcs12
+    Escape: true                                # Escape non-printable chars (\n, \r, \t).
     ```
 
     Sample kv.tsv
@@ -95,3 +95,19 @@ dotnet publish KeyVault.cs -c Release -p:AssemblyVersion=1.0.0.0 -p:Version=1.0.
     sample-pem-certificate	-----BEGIN PRIVATE KEY-----\n...\n-----END CERTIFICATE-----\n	application/x-pem-file
     sample-pfx-certificate	MIIV...	application/x-pkcs12
     ```
+
+## DefaultAzureCredential
+
+Simplifies authentication while developing apps that deploy to Azure by combining credentials used in Azure hosting environments with credentials used in local development. In production, it's better to use something else. See Usage guidance for DefaultAzureCredential.
+
+Attempts to authenticate with each of these credentials, in the following order, stopping when one provides a token:
+
+- [EnvironmentCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.environmentcredential?view=azure-dotnet)
+- [WorkloadIdentityCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.workloadidentitycredential?view=azure-dotnet)
+- [ManagedIdentityCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.managedidentitycredential?view=azure-dotnet)
+- [VisualStudioCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.visualstudiocredential?view=azure-dotnet)
+- [VisualStudioCodeCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.visualstudiocodecredential?view=azure-dotnet)
+- [AzureCliCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.azureclicredential?view=azure-dotnet)
+- [AzurePowerShellCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.azurepowershellcredential?view=azure-dotnet)
+- [AzureDeveloperCliCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.azuredeveloperclicredential?view=azure-dotnet)
+- [InteractiveBrowserCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.interactivebrowsercredential?view=azure-dotnet)

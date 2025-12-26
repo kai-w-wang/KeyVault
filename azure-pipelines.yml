@@ -1,25 +1,47 @@
 stages:
-- stage: Build
-  jobs:
-  - job: Build
-    pool:
-      name: ubuntu
-    variables:
-      project: 'KeyVault.cs'
-      buildPlatform: 'Any CPU'
-      buildConfiguration: 'Release'
-    steps:
-    - checkout: self
-      path: KeyVault
-      clean: "false"
-    - task: UseDotNet@2
-      displayName: Use .Net Core sdk 10.x
-      inputs:
-        packageType: sdk
-        version: 10.x
-    - script: |
-        apt install clang zlib1g-dev
-        dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/win-x64 --runtime win-x64 --self-contained true -p:PublishSingleFile=true
-        dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/linux-x64 --runtime linux-x64 --self-contained true -p:PublishSingleFile=true
-      displayName: 'dotnet publish'
-    - publish: $(build.artifactstagingdirectory)
+  - stage: Build
+    jobs:
+      - job: linux
+        pool:
+          name: ubuntu
+        variables:
+          project: "KeyVault.cs"
+          buildPlatform: "Any CPU"
+          buildConfiguration: "Release"
+        steps:
+          - checkout: self
+            path: KeyVault
+            clean: "false"
+          - task: UseDotNet@2
+            displayName: Use .Net Core sdk 10.x
+            inputs:
+              packageType: sdk
+              version: 10.x
+          - script: |
+              apt update
+              apt upgrade -y
+              apt install -y clang zlib1g-dev
+              dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/linux-x64 --runtime linux-x64 --self-contained true -p:PublishSingleFile=true
+            displayName: "dotnet publish"
+          - publish: $(build.artifactstagingdirectory)
+      - job: win
+        pool:
+          # name: ubuntu
+          vmImage: "windows-latest"
+        variables:
+          project: "KeyVault.cs"
+          buildPlatform: "Any CPU"
+          buildConfiguration: "Release"
+        steps:
+          - checkout: self
+            path: KeyVault
+            clean: "false"
+          - task: UseDotNet@2
+            displayName: Use .Net Core sdk 10.x
+            inputs:
+              packageType: sdk
+              version: 10.x
+          - script: |
+              dotnet publish $(project) --configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)/win-x64 --runtime win-x64 --self-contained true -p:PublishSingleFile=true
+            displayName: "dotnet publish"
+          - publish: $(build.artifactstagingdirectory)
