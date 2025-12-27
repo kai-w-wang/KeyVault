@@ -138,15 +138,15 @@ class Program {
             .Configure<KeyVaultOptions>(config)
             .AddLogging(builder => {
                 Log.Logger = new LoggerConfiguration()
-                .Enrich.FromLogContext()
-                .WriteTo.Console()
-                .CreateLogger();        
+                    .Enrich.FromLogContext()
+                    .WriteTo.Console()
+                    .CreateLogger();
                 builder.ClearProviders() // Replace built-in Debug/Console providers with SeriLog.
                     .AddSerilog(dispose: true);
 
             })
             .AddHostedService<KeyVaultService>();
-    }    
+    }
 }
 [JsonConverter(typeof(JsonStringEnumConverter<OperationMode>))]
 public enum OperationMode {
