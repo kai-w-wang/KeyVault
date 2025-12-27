@@ -28,7 +28,7 @@ SOFTWARE.
 #:package Azure.Security.KeyVault.Certificates@4.8.0
 #:package Azure.Security.KeyVault.Keys@4.8.0
 #:package Azure.Security.KeyVault.Secrets@4.8.0
-#:package Microsoft.Azure.Services.AppAuthentication@1.6.2
+// #:package Microsoft.Azure.Services.AppAuthentication@1.6.2
 #:package Microsoft.Extensions.Configuration@10.0.1
 #:package Microsoft.Extensions.Configuration.Commandline@10.0.1
 #:package Microsoft.Extensions.Configuration.EnvironmentVariables@10.0.1
@@ -40,10 +40,15 @@ SOFTWARE.
 #:package Microsoft.Extensions.Options.ConfigurationExtensions@10.0.1
 #:package Microsoft.Extensions.Logging@10.0.1
 #:package Microsoft.Extensions.Logging.Abstractions@10.0.1
-#:package Microsoft.Extensions.Logging.Console@10.0.1
-#:package Microsoft.Extensions.Logging.Filter@1.1.2
+// #:package Microsoft.Extensions.Logging.Console@10.0.1
+// #:package Microsoft.Extensions.Logging.Filter@1.1.2
 #:package NetEscapades.Configuration.Yaml@3.1.0
 #:package Microsoft.CodeAnalysis.CSharp@5.0.0
+#:package Serilog@4.3.0
+#:package Serilog.Extensions.Logging@10.0.0
+#:package Serilog.Extensions.Hosting@10.0.0
+#:package Serilog.Settings.Configuration@10.0.0
+#:package Serilog.Sinks.Console@6.1.1
 
 #:property EnableConfigurationBindingGenerator=true
 
@@ -63,6 +68,8 @@ using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Keys;
 using System.Text.Json.Serialization;
 using Azure.Core;
+using Serilog;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace KeyVaultTool;
 
@@ -77,13 +84,11 @@ class Program {
         await host.RunAsync();
     }
     static void ConfigureAppCongiuration(HostBuilderContext context, IConfigurationBuilder builder) {
-        var defaults = new Dictionary<string, string?> {
-            ["Logging:Console:FormatterName"] = "Simple",
-            ["Logging:Console:FormatterOptions:SingleLine"] = bool.FalseString,
-            ["Logging:Console:FormatterOptions:IncludeScopes"] = bool.TrueString,
-            ["Logging:Console:FormatterOptions:TimestampFormat"] = "HH:mm:ss "
-        };
-        builder.AddInMemoryCollection(defaults);
+        // var defaults = new Dictionary<string, string?> {
+        //     ["Serilog:Using:0"] = "Serilog.Sinks.Console",
+        //     ["Serilog:WriteTo:0:Name"] = "Console"
+        // };
+        // builder.AddInMemoryCollection(defaults);
         var switchMappings = new Dictionary<string, string>(){
                 { "-c", "config" },
                 { "-a", "address" },
@@ -131,8 +136,17 @@ class Program {
             .Configure<HostOptions>(option => option.ShutdownTimeout = System.TimeSpan.FromSeconds(20))
             .Configure<ConsoleLifetimeOptions>(options => options.SuppressStatusMessages = true)
             .Configure<KeyVaultOptions>(config)
+            .AddLogging(builder => {
+                Log.Logger = new LoggerConfiguration()
+                .Enrich.FromLogContext()
+                .WriteTo.Console()
+                .CreateLogger();        
+                builder.ClearProviders() // Replace built-in Debug/Console providers with SeriLog.
+                    .AddSerilog(dispose: true);
+
+            })
             .AddHostedService<KeyVaultService>();
-    }
+    }    
 }
 [JsonConverter(typeof(JsonStringEnumConverter<OperationMode>))]
 public enum OperationMode {
