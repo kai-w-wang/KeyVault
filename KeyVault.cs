@@ -79,8 +79,8 @@ class Program {
     static void ConfigureAppCongiuration(HostBuilderContext context, IConfigurationBuilder cb) {
         var defaults = new Dictionary<string, string?> {
             ["Logging:Console:FormatterName"] = "Simple",
-            ["Logging:Console:FormatterOptions:SingleLine"] = bool.TrueString,
-            ["Logging:Console:FormatterOptions:IncludeScopes"] = bool.FalseString,
+            ["Logging:Console:FormatterOptions:SingleLine"] = bool.FalseString,
+            ["Logging:Console:FormatterOptions:IncludeScopes"] = bool.TrueString,
             ["Logging:Console:FormatterOptions:TimestampFormat"] = "HH:mm:ss "
         };
         cb.AddInMemoryCollection(defaults);
@@ -300,7 +300,6 @@ public class KeyVaultService : BackgroundService {
             : list.Where(l => Regex.IsMatch(l.Name, _options.Filter) && Regex.IsMatch(l.ContentType ?? string.Empty, _options.ContentTypeFilter));
         foreach (SecretProperties item in result) {
             KeyVaultSecret secret = await secretClient.GetSecretAsync(item.Name);
-            //var secret = await kv.GetSecretAsync(item.Id, stoppingToken);
             string secretValue = secret.Value;
             if (_options.Escape)
                 secretValue = Escape(secretValue);
@@ -308,8 +307,6 @@ public class KeyVaultService : BackgroundService {
             List<string> valueList = [secret.Name, secretValue];
             if (!string.IsNullOrWhiteSpace(secret.Properties.ContentType))
                 valueList.Add(secret.Properties.ContentType);
-            // if (item.Tags != null)
-            //     valueList.AddRange(item.Tags.Values);
             string line = string.Join(_options.Delimiter, valueList);
             writer.WriteLine(line);
             if (!_options.ShowVersions)
