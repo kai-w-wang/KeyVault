@@ -50,7 +50,7 @@ jobs:
         with:
           name: keyvault_linux_x64
           path: keyvault_linux_x64_1.0.${{ github.run_number }}.zip
-  create-release:
+  release:
     needs: 
       - build-win
       - build-linux

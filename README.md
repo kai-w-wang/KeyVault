@@ -13,14 +13,7 @@ dotnet run KeyVault.cs -- --help
 ## Build
 
 ```cmd
-dotnet publish KeyVault.cs ^
-    -c Release ^
-    -p:AssemblyVersion=1.0.0.0 ^
-    -p:Version=1.0.0.0 ^
-    -p:PublishSingleFile=true ^
-    -r win-x64 ^
-    --self-contained true^
-    -o c:\tools
+dotnet publish KeyVault.cs -c Release -p:PublishSingleFile=true -r win-x64 --self-contained true
 ```
 
 ## Samples
@@ -28,7 +21,7 @@ dotnet publish KeyVault.cs ^
 1. Show help
 
     ```cmd
-    c:\>c:\tools\keyvault
+    keyvault
     info: KeyVaultTool.KeyVaultService[0]
       Version: 1.0.0.0, Author: Kai Wang
 
