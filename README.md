@@ -85,8 +85,8 @@ dotnet publish KeyVault.cs -c Release -p:PublishSingleFile=true -r win-x64 --sel
     # TenantId: {TenantId}                      # Default or customized Entra Id tenant.
     # ClientId:                                 # Managed Identity Authentication.
     # ClientSecret:                             # SPN Secret Authentication.
-    # Thumbprint:                               # SPN Certifivate Authentication.
-    Mode: Export                                # Import | Export | Help
+    # Thumbprint:                               # SPN Certificate Authentication.
+    Mode: Export                                # Help | Import | Export | Copy
     File: kv.tsv                                # Output file. Default to Console output (stdout).
     ShowVersions: false                         # List version history.
     ContentTypeFilter: ".*"                     # or: application/x-pem-file | application/x-pkcs12
@@ -110,14 +110,20 @@ dotnet publish KeyVault.cs -c Release -p:PublishSingleFile=true -r win-x64 --sel
     copy.yml
 
     ```yaml
-    mode: Copy
-    Scopes: "secrets,certificates"
-    ContentTypeFilter: ".*"
-    Escape: true
+    Mode: Copy                                      # Help | Import | Export | Copy
+    Scopes: "secrets,certificates"                  # secrets | keys | certificates |
+    ContentTypeFilter: ".*"                         # regular expression
+    Escape: true                                    # Escape non-printable chars (\n, \r, \t).
     From:
-        Address: https://chinavault1.vault.azure.cn/
-        TenantId: 3953396c-814c-4dbe-b543-ae4999978206
+        Address: https://sourcekeyvault.vault.azure.net/
+        # TenantId: {TenantId}                      # Customized Entra Id tenant.
+        # ClientId:                                 # Managed Identity Authentication.
+        # ClientSecret:                             # SPN Secret Authentication.
+        # Thumbprint:                               # SPN Certificate Authentication.
     To:
-        Address: https://iota-cnn3-kv-qa.vault.azure.cn/
-        TenantId: 3953396c-814c-4dbe-b543-ae4999978206
+        Address: https://destkeyvault.vault.azure.net/
+        # TenantId: {TenantId}                      # Customized Entra Id tenant.
+        # ClientId:                                 # Managed Identity Authentication.
+        # ClientSecret:                             # SPN Secret Authentication.
+        # Thumbprint:                               # SPN Certificate Authentication.
     ```
