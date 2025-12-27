@@ -53,7 +53,7 @@ dotnet publish KeyVault.cs ^
 
     ```
 
-1. Export key vault content with default Azure credential (Environmental Variables, Azure CLI, Visual Studio, or Visual Studio)
+1. Export key vault content with [default Azure credential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet).
 
     ```cmd
     REM Export content into console output (stdout)
@@ -108,18 +108,23 @@ dotnet publish KeyVault.cs ^
     sample-pfx-certificate	MIIV...	application/x-pkcs12
     ```
 
-## DefaultAzureCredential
+1. Copy secrets,keys,certificates from key vault to key vault.
 
-Simplifies authentication while developing apps that deploy to Azure by combining credentials used in Azure hosting environments with credentials used in local development. In production, it's better to use something else. See Usage guidance for DefaultAzureCredential.
+    ```cmd
+    keyvault --config copy.yml
+    ```
 
-Attempts to authenticate with each of these credentials, in the following order, stopping when one provides a token:
+    copy.yml
 
-- [EnvironmentCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.environmentcredential?view=azure-dotnet)
-- [WorkloadIdentityCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.workloadidentitycredential?view=azure-dotnet)
-- [ManagedIdentityCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.managedidentitycredential?view=azure-dotnet)
-- [VisualStudioCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.visualstudiocredential?view=azure-dotnet)
-- [VisualStudioCodeCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.visualstudiocodecredential?view=azure-dotnet)
-- [AzureCliCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.azureclicredential?view=azure-dotnet)
-- [AzurePowerShellCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.azurepowershellcredential?view=azure-dotnet)
-- [AzureDeveloperCliCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.azuredeveloperclicredential?view=azure-dotnet)
-- [InteractiveBrowserCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.interactivebrowsercredential?view=azure-dotnet)
+    ```yaml
+    mode: Copy
+    Scopes: "secrets,certificates"
+    ContentTypeFilter: ".*"
+    Escape: true
+    From:
+        Address: https://chinavault1.vault.azure.cn/
+        TenantId: 3953396c-814c-4dbe-b543-ae4999978206
+    To:
+        Address: https://iota-cnn3-kv-qa.vault.azure.cn/
+        TenantId: 3953396c-814c-4dbe-b543-ae4999978206
+    ```
