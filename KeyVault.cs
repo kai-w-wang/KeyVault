@@ -254,8 +254,23 @@ public class KeyVaultService : BackgroundService {
                 } else {
                     switch (contentType.ToLower()) {
                         case "application/x-pkcs12":
-                            if (certificateClient != null)
-                                await certificateClient.ImportCertificateAsync(new ImportCertificateOptions(name, Convert.FromBase64String(value)), stoppingToken);
+                            if (certificateClient != null) {
+                                var bytes = Convert.FromBase64String(value);
+                                var coll = new X509Certificate2Collection();
+                                coll = X509CertificateLoader.LoadPkcs12Collection(bytes, null, X509KeyStorageFlags.Exportable);
+                                if (coll.Count == 0)
+                                    continue;
+                                X509Certificate2 certificate = coll[coll.Count - 1];
+                                if (DateTime.UtcNow > certificate.NotAfter) {
+                                    _logger.LogWarning("Skip certificate '{0}' (thumbprint: {1}) as it expired since {2}.", 
+                                        name, 
+                                        certificate.Thumbprint, 
+                                        certificate.NotAfter
+                                        );
+                                    continue;
+                                }
+                                await certificateClient.ImportCertificateAsync(new ImportCertificateOptions(name, bytes), stoppingToken);
+                            }
                             break;
                         case "application/x-pem-file":
                             if (certificateClient != null)
