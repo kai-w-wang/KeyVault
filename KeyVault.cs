@@ -76,14 +76,14 @@ class Program {
             .Build();
         await host.RunAsync();
     }
-    static void ConfigureAppCongiuration(HostBuilderContext context, IConfigurationBuilder cb) {
+    static void ConfigureAppCongiuration(HostBuilderContext context, IConfigurationBuilder builder) {
         var defaults = new Dictionary<string, string?> {
             ["Logging:Console:FormatterName"] = "Simple",
             ["Logging:Console:FormatterOptions:SingleLine"] = bool.FalseString,
             ["Logging:Console:FormatterOptions:IncludeScopes"] = bool.TrueString,
             ["Logging:Console:FormatterOptions:TimestampFormat"] = "HH:mm:ss "
         };
-        cb.AddInMemoryCollection(defaults);
+        builder.AddInMemoryCollection(defaults);
         var switchMappings = new Dictionary<string, string>(){
                 { "-c", "config" },
                 { "-a", "address" },
@@ -100,27 +100,27 @@ class Program {
                 { "--client-secret", "clientSecret" },
                 { "--show-versions", "showVersions" },
             };
-        cb.AddCommandLine(_args, switchMappings);
-        IConfiguration config = cb.Build();
+        builder.AddCommandLine(_args, switchMappings);
+        IConfiguration config = builder.Build();
         var configPath = config["config"];
         if (File.Exists(configPath)) {
             var extName = Path.GetExtension(configPath);
             extName = extName.ToLower();
             switch (extName) {
                 case ".json":
-                    cb.AddJsonFile(configPath);
+                    builder.AddJsonFile(configPath);
                     break;
                 // case ".xml":
                 //     cb.AddXmlFile(configPath);
                 //     break;
                 case ".ini":
-                    cb.AddIniFile(configPath);
+                    builder.AddIniFile(configPath);
                     break;
                 case ".yaml":
-                    cb.AddYamlFile(configPath);
+                    builder.AddYamlFile(configPath);
                     break;
                 case ".yml":
-                    cb.AddYamlFile(configPath);
+                    builder.AddYamlFile(configPath);
                     break;
             }
         }
